@@ -29,6 +29,10 @@ La aplicación permite:
 - Notificar a los residentes.
 - Llevar un historial de recibos y entregas.
 - Gestionar el estado de cada paquete.
+## Configuración
+1. Copiar el archivo `.env.example`:
+   ```bash
+   cp .env.example .env
 # Política de ramas
 ## Ramas principales
 
