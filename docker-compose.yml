@@ -10,6 +10,37 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+  
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    container_name: proyecto_backend
+    restart: always
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: appdb
+      DB_USER: root
+      DB_PASSWORD: clave123
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proyecto_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - backend
 
 volumes:
   mysql_data:

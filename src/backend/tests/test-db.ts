@@ -1,4 +1,4 @@
-import mysql from "mysql2/promise";
+import mysql, { type RowDataPacket, type ResultSetHeader } from "mysql2/promise";
 
 async function testDB() {
   try {
@@ -12,7 +12,6 @@ async function testDB() {
 
     console.log("Conexión exitosa");
 
-    // Crear tabla si no existe
     await connection.query(`
       CREATE TABLE IF NOT EXISTS packages (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -24,20 +23,25 @@ async function testDB() {
     `);
     console.log("Tabla 'packages' lista");
 
-    // Insertar un registro de prueba
-    const [insertResult] = await connection.query(
+    const [insertResult] = await connection.query<ResultSetHeader>(
       "INSERT INTO packages (recipient_name, description, status) VALUES (?, ?, ?)",
       ["Juan Pérez", "Paquete de prueba", "received"]
     );
-    const insertId = (insertResult as any).insertId;
+
+    const insertId = insertResult.insertId;
     console.log(`Registro insertado con ID: ${insertId}`);
 
-    // Consultar el registro insertado
-    const [rows] = await connection.query("SELECT * FROM packages WHERE id = ?", [insertId]);
+    const [rows] = await connection.query<RowDataPacket[]>(
+      "SELECT * FROM packages WHERE id = ?",
+      [insertId]
+    );
+
     console.log("Registro consultado:", rows[0]);
 
-    // Listar todos los registros
-    const [allRows] = await connection.query("SELECT * FROM packages ORDER BY created_at DESC");
+    const [allRows] = await connection.query<RowDataPacket[]>(
+      "SELECT * FROM packages ORDER BY created_at DESC"
+    );
+
     console.log("Todos los registros:", allRows);
 
     await connection.end();

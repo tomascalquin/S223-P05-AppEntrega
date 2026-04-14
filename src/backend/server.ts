@@ -1,4 +1,5 @@
-import { db } from "./db";
+import db from "./db";
+import type { RowDataPacket, ResultSetHeader } from "mysql2";
 
 async function createTables() {
   try {
@@ -26,7 +27,7 @@ Bun.serve({
 
     if (request.method === "GET" && url.pathname === "/") {
       try {
-        const [rows] = await db.query("SELECT 1 AS test");
+        const [rows] = await db.query<RowDataPacket[]>("SELECT 1 AS test");
 
         return Response.json({
           message: "Conexión a MySQL exitosa",
@@ -45,7 +46,9 @@ Bun.serve({
 
     if (request.method === "GET" && url.pathname === "/api/packages") {
       try {
-        const [rows] = await db.query("SELECT * FROM packages ORDER BY created_at DESC");
+        const [rows] = await db.query<RowDataPacket[]>(
+          "SELECT * FROM packages ORDER BY created_at DESC"
+        );
 
         return Response.json({
           packages: rows,
@@ -64,20 +67,23 @@ Bun.serve({
     if (request.method === "POST" && url.pathname === "/api/packages") {
       try {
         const body = await request.json();
-        const { recipient_name, description, status = 'received' } = body;
+        const { recipient_name, description, status = "received" } = body;
 
         if (!recipient_name) {
-          return Response.json({ error: "recipient_name es requerido" }, { status: 400 });
+          return Response.json(
+            { error: "recipient_name es requerido" },
+            { status: 400 }
+          );
         }
 
-        const [result] = await db.query(
+        const [result] = await db.query<ResultSetHeader>(
           "INSERT INTO packages (recipient_name, description, status) VALUES (?, ?, ?)",
           [recipient_name, description, status]
         );
 
         return Response.json({
           message: "Paquete insertado exitosamente",
-          id: (result as any).insertId,
+          id: result.insertId,
         });
       } catch (error) {
         return Response.json(
@@ -93,10 +99,17 @@ Bun.serve({
     if (request.method === "GET" && url.pathname.startsWith("/api/packages/")) {
       try {
         const id = url.pathname.split("/").pop();
-        const [rows] = await db.query("SELECT * FROM packages WHERE id = ?", [id]);
+
+        const [rows] = await db.query<RowDataPacket[]>(
+          "SELECT * FROM packages WHERE id = ?",
+          [id]
+        );
 
         if (rows.length === 0) {
-          return Response.json({ error: "Paquete no encontrado" }, { status: 404 });
+          return Response.json(
+            { error: "Paquete no encontrado" },
+            { status: 404 }
+          );
         }
 
         return Response.json({
@@ -107,11 +120,6 @@ Bun.serve({
           {
             message: "Error obteniendo paquete",
             error: String(error),
-          },
-          { status: 500 }
-        );
-      }
-    }
           },
           { status: 500 }
         );

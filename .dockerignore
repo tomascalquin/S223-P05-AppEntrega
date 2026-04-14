@@ -1,0 +1,11 @@
+**/node_modules
+**/tests
+.git
+.gitignore
+README.md
+.env
+
+src/backend/tests
+src/backend/tests/*
+tests
+tests/*

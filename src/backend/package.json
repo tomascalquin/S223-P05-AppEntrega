@@ -1,0 +1,13 @@
+{
+  "name": "backend",
+  "module": "server.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run server.ts",
+    "start": "bun run server.ts",
+    "test-db": "bun run tests/test-db.ts"
+  },
+  "dependencies": {
+    "mysql2": "^3.22.0"
+  }
+}
