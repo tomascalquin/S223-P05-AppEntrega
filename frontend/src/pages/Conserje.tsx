@@ -1,92 +1,96 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
-// # Este tipo define la forma exacta de los datos que guarda el formulario.
+// # Este tipo representa exactamente los nombres que hoy espera el backend.
+// # Así evitamos tener que traducir campos antes del fetch.
 type PackageFormData = {
-  nombre: string;
-  departamento: string;
-  remitente: string;
-  descripcion: string;
+  recipient_name: string;
+  apartment_number: string;
+  sender: string;
+  delivery_date: string;
+  urgency: "normal" | "urgent";
 };
 
-// # Este tipo guarda los mensajes de error de cada campo.
-type PackageFormErrors = Record<keyof PackageFormData, string>;
+// # Este tipo guarda los mensajes de error por cada campo visible del formulario.
+type PackageFormErrors = {
+  recipient_name: string;
+  apartment_number: string;
+  sender: string;
+  delivery_date: string;
+};
 
-// # Este objeto nos sirve para reiniciar el formulario cuando todo sale bien.
+// # Este objeto deja los inputs con sus valores iniciales.
+// # "normal" queda marcado por defecto para que siempre haya una urgencia elegida.
 const initialFormData: PackageFormData = {
-  nombre: "",
-  departamento: "",
-  remitente: "",
-  descripcion: "",
+  recipient_name: "",
+  apartment_number: "",
+  sender: "",
+  delivery_date: "",
+  urgency: "normal",
 };
 
-// # Este objeto deja todos los errores vacíos al principio.
+// # Este objeto deja todos los errores vacíos al inicio.
 const initialErrors: PackageFormErrors = {
-  nombre: "",
-  departamento: "",
-  remitente: "",
-  descripcion: "",
+  recipient_name: "",
+  apartment_number: "",
+  sender: "",
+  delivery_date: "",
 };
 
-// # Aquí dejamos la URL base del backend.
-// # El backend de este proyecto corre en el puerto 3001.
+// # URL base del backend actual.
 const API_URL = "http://localhost:3001";
 
 const Conserje = () => {
-  // # Estado principal con los datos escritos por el usuario.
+  // # Estado principal del formulario.
   const [formData, setFormData] = useState<PackageFormData>(initialFormData);
 
-  // # Estado con errores específicos de cada input.
+  // # Estado para mensajes de error por campo.
   const [fieldErrors, setFieldErrors] =
     useState<PackageFormErrors>(initialErrors);
 
-  // # Estado para mostrar un error general del formulario o del backend.
+  // # Estado para error general del envío.
   const [errorMessage, setErrorMessage] = useState("");
 
-  // # Estado para mostrar confirmación cuando el registro sale bien.
+  // # Estado para mensaje de éxito cuando el backend responde bien.
   const [successMessage, setSuccessMessage] = useState("");
 
-  // # Estado para desactivar el botón mientras se envían los datos.
+  // # Estado para bloquear el botón mientras se realiza el POST.
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // # Esta función revisa cada campo y devuelve los errores encontrados.
+  // # Esta función valida solo los campos que actualmente usa el backend.
   const validateForm = (values: PackageFormData) => {
     const nextErrors: PackageFormErrors = { ...initialErrors };
 
-    // # trim() evita que espacios vacíos pasen como datos válidos.
-    if (!values.nombre.trim()) {
-      nextErrors.nombre = "El nombre del residente es obligatorio.";
+    if (!values.recipient_name.trim()) {
+      nextErrors.recipient_name = "El nombre del residente es obligatorio.";
     }
 
-    if (!values.departamento.trim()) {
-      nextErrors.departamento = "El departamento es obligatorio.";
-    } else if (!/^[A-Za-z0-9-]{1,10}$/.test(values.departamento.trim())) {
-      nextErrors.departamento =
+    if (!values.apartment_number.trim()) {
+      nextErrors.apartment_number = "El departamento es obligatorio.";
+    } else if (!/^[A-Za-z0-9-]{1,10}$/.test(values.apartment_number.trim())) {
+      nextErrors.apartment_number =
         "Usa un formato válido, por ejemplo 101 o A-12.";
     }
 
-    if (!values.remitente.trim()) {
-      nextErrors.remitente = "El remitente es obligatorio.";
+    if (!values.sender.trim()) {
+      nextErrors.sender = "El remitente es obligatorio.";
     }
 
-    if (values.descripcion.trim().length > 200) {
-      nextErrors.descripcion =
-        "La descripción no puede superar los 200 caracteres.";
+    if (!values.delivery_date.trim()) {
+      nextErrors.delivery_date = "La fecha es obligatoria.";
     }
 
     return nextErrors;
   };
 
-  // # Esta variable nos ayuda a saber rápido si existe al menos un error.
+  // # Esto permite saber si hay al menos un error antes de enviar.
   const hasValidationErrors = (errors: PackageFormErrors) => {
     return Object.values(errors).some((error) => error !== "");
   };
 
-  // # Este handler actualiza el estado cuando cambias un input.
-  // # También limpia el error del campo que se está corrigiendo.
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  // # Este handler se usa para inputs de texto y fecha.
+  // # Limpia el error solo del campo que el usuario está corrigiendo.
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
     setFormData((current) => ({
@@ -99,16 +103,27 @@ const Conserje = () => {
       [name]: "",
     }));
 
-    // # Limpiamos mensajes generales para que la interfaz responda de inmediato.
     setErrorMessage("");
     setSuccessMessage("");
   };
 
-  // # Este submit hace cuatro pasos:
-  // # 1. Evita recargar la página
-  // # 2. Valida
-  // # 3. Envía al backend
-  // # 4. Muestra feedback visual según el resultado
+  // # Este handler controla la urgencia con dos botones.
+  // # Se guarda en el estado para que la interfaz muestre la selección actual.
+  const handleUrgencyChange = (urgency: "normal" | "urgent") => {
+    setFormData((current) => ({
+      ...current,
+      urgency,
+    }));
+
+    setErrorMessage("");
+    setSuccessMessage("");
+  };
+
+  // # Este submit:
+  // # 1. Valida campos
+  // # 2. Arma un payload compatible con el backend
+  // # 3. Envía el POST
+  // # 4. Muestra éxito o error
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -117,10 +132,11 @@ const Conserje = () => {
 
     // # Normalizamos los datos antes de validarlos y enviarlos.
     const normalizedData: PackageFormData = {
-      nombre: formData.nombre.trim(),
-      departamento: formData.departamento.trim().toUpperCase(),
-      remitente: formData.remitente.trim(),
-      descripcion: formData.descripcion.trim(),
+      recipient_name: formData.recipient_name.trim(),
+      apartment_number: formData.apartment_number.trim().toUpperCase(),
+      sender: formData.sender.trim(),
+      delivery_date: formData.delivery_date,
+      urgency: formData.urgency,
     };
 
     const validationErrors = validateForm(normalizedData);
@@ -134,21 +150,13 @@ const Conserje = () => {
     setIsSubmitting(true);
 
     try {
-      // # El backend actual espera un payload con recipient_name, description y status.
-      // # Como todavía no guarda departamento y remitente en columnas separadas,
-      // # los incorporamos dentro de la descripción para no perder información.
+      // # Este payload usa exactamente los nombres que hoy espera el backend.
+      // # No enviamos urgencia todavía porque el backend actual aún no tiene esa columna.
       const payload = {
-        recipient_name: normalizedData.nombre,
-        description: [
-          `Departamento: ${normalizedData.departamento}`,
-          `Remitente: ${normalizedData.remitente}`,
-          normalizedData.descripcion
-            ? `Descripcion: ${normalizedData.descripcion}`
-            : "",
-        ]
-          .filter(Boolean)
-          .join(" | "),
-        status: "received",
+        recipient_name: normalizedData.recipient_name,
+        apartment_number: normalizedData.apartment_number,
+        sender: normalizedData.sender,
+        delivery_date: normalizedData.delivery_date,
       };
 
       const response = await fetch(`${API_URL}/api/packages`, {
@@ -159,7 +167,7 @@ const Conserje = () => {
         body: JSON.stringify(payload),
       });
 
-      // # Intentamos leer la respuesta como JSON solo si el backend realmente lo envía.
+      // # Si el backend devuelve JSON, lo leemos para mostrar mejor el resultado.
       const contentType = response.headers.get("content-type") ?? "";
       const responseData = contentType.includes("application/json")
         ? await response.json()
@@ -171,10 +179,16 @@ const Conserje = () => {
         throw new Error(backendMessage);
       }
 
-      // # Dejamos el log por si quieres inspeccionar la respuesta en desarrollo.
       console.log("Respuesta backend:", responseData);
 
-      setSuccessMessage("Encomienda registrada correctamente.");
+      // # Incluimos la urgencia en el mensaje visual para que el usuario vea qué eligió,
+      // # aunque por ahora esa información no viaje al backend.
+      setSuccessMessage(
+        `Encomienda registrada correctamente como ${
+          normalizedData.urgency === "urgent" ? "urgente" : "no urgente"
+        }.`
+      );
+
       setFormData(initialFormData);
       setFieldErrors(initialErrors);
     } catch (error) {
@@ -186,131 +200,157 @@ const Conserje = () => {
           : "Error al conectar con el servidor."
       );
     } finally {
-      // # Pase lo que pase, el botón vuelve a estar disponible al final.
       setIsSubmitting(false);
     }
   };
 
   return (
     <div className="flex flex-col gap-6">
-      {/* # Título principal de la pantalla */}
+      {/* # Título principal de la vista */}
       <h1 className="text-2xl font-semibold text-white">
         Registrar encomienda
       </h1>
 
-      {/* # Tarjeta del formulario */}
+      {/* # Tarjeta principal del formulario */}
       <form
         onSubmit={handleSubmit}
         noValidate
         className="flex max-w-xl flex-col gap-4 rounded-xl bg-[#2a2a2a] p-6"
       >
-        {/* # Campo: nombre del residente */}
+        {/* # Campo compatible con recipient_name del backend */}
         <div>
-          <label htmlFor="nombre" className="text-sm text-gray-300">
+          <label htmlFor="recipient_name" className="text-sm text-gray-300">
             Nombre residente *
           </label>
           <input
-            id="nombre"
+            id="recipient_name"
             type="text"
-            name="nombre"
-            value={formData.nombre}
+            name="recipient_name"
+            value={formData.recipient_name}
             onChange={handleChange}
             placeholder="Ej: Camila Soto"
-            aria-invalid={fieldErrors.nombre !== ""}
+            aria-invalid={fieldErrors.recipient_name !== ""}
             className={`mt-1 w-full rounded border bg-[#1f1f1f] p-2 text-white focus:outline-none ${
-              fieldErrors.nombre
+              fieldErrors.recipient_name
                 ? "border-red-500 focus:border-red-400"
                 : "border-gray-600 focus:border-green-500"
             }`}
           />
-          {fieldErrors.nombre && (
-            <p className="mt-1 text-sm text-red-400">{fieldErrors.nombre}</p>
+          {fieldErrors.recipient_name && (
+            <p className="mt-1 text-sm text-red-400">
+              {fieldErrors.recipient_name}
+            </p>
           )}
         </div>
 
-        {/* # Campo: departamento */}
+        {/* # Campo compatible con apartment_number del backend */}
         <div>
-          <label htmlFor="departamento" className="text-sm text-gray-300">
+          <label htmlFor="apartment_number" className="text-sm text-gray-300">
             Departamento *
           </label>
           <input
-            id="departamento"
+            id="apartment_number"
             type="text"
-            name="departamento"
-            value={formData.departamento}
+            name="apartment_number"
+            value={formData.apartment_number}
             onChange={handleChange}
             placeholder="Ej: 101 o A-12"
-            aria-invalid={fieldErrors.departamento !== ""}
+            aria-invalid={fieldErrors.apartment_number !== ""}
             className={`mt-1 w-full rounded border bg-[#1f1f1f] p-2 text-white focus:outline-none ${
-              fieldErrors.departamento
+              fieldErrors.apartment_number
                 ? "border-red-500 focus:border-red-400"
                 : "border-gray-600 focus:border-green-500"
             }`}
           />
-          {fieldErrors.departamento && (
+          {fieldErrors.apartment_number && (
             <p className="mt-1 text-sm text-red-400">
-              {fieldErrors.departamento}
+              {fieldErrors.apartment_number}
             </p>
           )}
         </div>
 
-        {/* # Campo: remitente */}
+        {/* # Campo compatible con sender del backend */}
         <div>
-          <label htmlFor="remitente" className="text-sm text-gray-300">
+          <label htmlFor="sender" className="text-sm text-gray-300">
             Remitente *
           </label>
           <input
-            id="remitente"
+            id="sender"
             type="text"
-            name="remitente"
-            value={formData.remitente}
+            name="sender"
+            value={formData.sender}
             onChange={handleChange}
             placeholder="Ej: Mercado Libre"
-            aria-invalid={fieldErrors.remitente !== ""}
+            aria-invalid={fieldErrors.sender !== ""}
             className={`mt-1 w-full rounded border bg-[#1f1f1f] p-2 text-white focus:outline-none ${
-              fieldErrors.remitente
+              fieldErrors.sender
                 ? "border-red-500 focus:border-red-400"
                 : "border-gray-600 focus:border-green-500"
             }`}
           />
-          {fieldErrors.remitente && (
+          {fieldErrors.sender && (
+            <p className="mt-1 text-sm text-red-400">{fieldErrors.sender}</p>
+          )}
+        </div>
+
+        {/* # Campo compatible con delivery_date del backend */}
+        <div>
+          <label htmlFor="delivery_date" className="text-sm text-gray-300">
+            Fecha de entrega *
+          </label>
+          <input
+            id="delivery_date"
+            type="date"
+            name="delivery_date"
+            value={formData.delivery_date}
+            onChange={handleChange}
+            aria-invalid={fieldErrors.delivery_date !== ""}
+            className={`mt-1 w-full rounded border bg-[#1f1f1f] p-2 text-white focus:outline-none ${
+              fieldErrors.delivery_date
+                ? "border-red-500 focus:border-red-400"
+                : "border-gray-600 focus:border-green-500"
+            }`}
+          />
+          {fieldErrors.delivery_date && (
             <p className="mt-1 text-sm text-red-400">
-              {fieldErrors.remitente}
+              {fieldErrors.delivery_date}
             </p>
           )}
         </div>
 
-        {/* # Campo: descripción */}
+        {/* # Selector visual de urgencia.
+            # Por ahora es un dato solo del frontend hasta que el backend soporte ese campo. */}
         <div>
-          <label htmlFor="descripcion" className="text-sm text-gray-300">
-            Descripción
-          </label>
-          <textarea
-            id="descripcion"
-            name="descripcion"
-            value={formData.descripcion}
-            onChange={handleChange}
-            placeholder="Detalles del paquete, tamaño o instrucciones"
-            maxLength={200}
-            aria-invalid={fieldErrors.descripcion !== ""}
-            className={`mt-1 w-full rounded border bg-[#1f1f1f] p-2 text-white focus:outline-none ${
-              fieldErrors.descripcion
-                ? "border-red-500 focus:border-red-400"
-                : "border-gray-600 focus:border-green-500"
-            }`}
-          />
-          <div className="mt-1 flex items-center justify-between">
-            {fieldErrors.descripcion ? (
-              <p className="text-sm text-red-400">{fieldErrors.descripcion}</p>
-            ) : (
-              <p className="text-sm text-gray-500">
-                Campo opcional de hasta 200 caracteres.
-              </p>
-            )}
-            <span className="text-xs text-gray-500">
-              {formData.descripcion.length}/200
-            </span>
+          <p className="text-sm text-gray-300">Urgencia</p>
+          <div className="mt-2 flex gap-3">
+            <button
+              type="button"
+              onClick={() => handleUrgencyChange("normal")}
+              className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                formData.urgency === "normal"
+                  ? "border-gray-300 bg-gray-200 text-gray-900"
+                  : "border-gray-600 bg-[#1f1f1f] text-gray-300 hover:bg-[#2f2f2f]"
+              }`}
+            >
+              No urgente
+            </button>
+            <button
+              type="button"
+              onClick={() => handleUrgencyChange("urgent")}
+              className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                formData.urgency === "urgent"
+                  ? "border-red-400 bg-red-500 text-white"
+                  : "border-gray-600 bg-[#1f1f1f] text-gray-300 hover:bg-[#2f2f2f]"
+              }`}
+            >
+              Urgente
+            </button>
           </div>
+          <p className="mt-2 text-xs text-gray-500">
+            {formData.urgency === "urgent"
+              ? "Se marcara visualmente como urgente en esta pantalla."
+              : "Se registrara como no urgente en esta pantalla."}
+          </p>
         </div>
 
         {/* # Feedback general de error */}
@@ -327,7 +367,7 @@ const Conserje = () => {
           </div>
         )}
 
-        {/* # Botón principal del formulario */}
+        {/* # Botón de envío */}
         <button
           type="submit"
           disabled={isSubmitting}
