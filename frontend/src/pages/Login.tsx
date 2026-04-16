@@ -1,7 +1,19 @@
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const { login } = useAuth();
+
+  // hook de navegación
+  const navigate = useNavigate();
+
+  //  función que combina login + navegación
+  const handleLogin = (role: "conserje" | "residente") => {
+    login(role);
+
+    // TODO: Integrar con autenticación real que aun no es implementada
+    navigate(`/${role}`);
+  };
 
   return (
     // Fondo general

@@ -1,21 +1,28 @@
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/", { replace: true });
+  };
 
   return (
-    <div className="w-full bg-gray-800 p-4 text-white flex justify-between">
-      <h1 className="font-bold">Encomiendas App</h1>
+    <div className="flex w-full items-center justify-between border-b border-white/10 bg-[#252525] p-4 text-white">
+      <h1 className="font-bold">EncomBox</h1>
 
       {user && (
         <div className="flex items-center gap-4">
-          <span>{user.role}</span>
+          <span className="capitalize text-gray-300">{user.role}</span>
           <button
             type="button"
-            onClick={logout}
-            className="rounded bg-red-500 px-3 py-1"
+            onClick={handleLogout}
+            className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-500"
           >
-            Logout
+            Volver al login
           </button>
         </div>
       )}

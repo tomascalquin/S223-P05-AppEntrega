@@ -1,6 +1,17 @@
 import db from "./db";
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
 
+// # Estos headers permiten que el frontend en otro puerto pueda hablar con este backend.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+// # Este puerto puede cambiarse con la variable de entorno PORT.
+// # Si no se define, el backend usará 3001 por defecto.
+const PORT = Number(process.env.PORT || 3001);
+
 async function createTables() {
   try {
     await db.query(`
@@ -24,50 +35,69 @@ async function createTables() {
 await createTables();
 
 Bun.serve({
+  port: PORT,
+  async fetch(request) {
   port: 3001,
   async fetch(request: Request) {
     const url = new URL(request.url);
+    // # Normalizamos el método para comparar siempre en mayúsculas.
+    const method = request.method.trim().toUpperCase();
 
-    if (request.method === "GET" && url.pathname === "/") {
+    // # El navegador envía OPTIONS antes de algunos POST.
+    // # Si no respondemos esto, aparece el típico error "Failed to fetch".
+    if (method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders,
+      });
+    }
+
+    if (method === "GET" && url.pathname === "/") {
       try {
         const [rows] = await db.query<RowDataPacket[]>("SELECT 1 AS test");
 
-        return Response.json({
-          message: "Conexión a MySQL exitosa",
-          result: rows,
-        });
+        return Response.json(
+          {
+            message: "Conexión a MySQL exitosa",
+            result: rows,
+          },
+          { headers: corsHeaders }
+        );
       } catch (error) {
         return Response.json(
           {
             message: "Error al conectar con MySQL",
             error: String(error),
           },
-          { status: 500 }
+          { status: 500, headers: corsHeaders }
         );
       }
     }
 
-    if (request.method === "GET" && url.pathname === "/api/packages") {
+    if (method === "GET" && url.pathname === "/api/packages") {
       try {
         const [rows] = await db.query<RowDataPacket[]>(
           "SELECT * FROM packages ORDER BY created_at DESC"
         );
 
-        return Response.json({
-          packages: rows,
-        });
+        return Response.json(
+          {
+            packages: rows,
+          },
+          { headers: corsHeaders }
+        );
       } catch (error) {
         return Response.json(
           {
             message: "Error obteniendo paquetes",
             error: String(error),
           },
-          { status: 500 }
+          { status: 500, headers: corsHeaders }
         );
       }
     }
 
-    if (request.method === "POST" && url.pathname === "/api/packages") {
+    if (method === "POST" && url.pathname === "/api/packages") {
       try {
         const body = (await request.json()) as Record<string, unknown>;
         const { recipient_name, apartment_number, description, sender, delivery_date, status = "received" } = body;
@@ -75,7 +105,7 @@ Bun.serve({
         if (!recipient_name) {
           return Response.json(
             { error: "recipient_name es requerido" },
-            { status: 400 }
+            { status: 400, headers: corsHeaders }
           );
         }
 
@@ -98,22 +128,25 @@ Bun.serve({
           [recipient_name, apartment_number, description, sender, delivery_date || null, status]
         );
 
-        return Response.json({
-          message: "Paquete insertado exitosamente",
-          id: result.insertId,
-        });
+        return Response.json(
+          {
+            message: "Paquete insertado exitosamente",
+            id: result.insertId,
+          },
+          { headers: corsHeaders }
+        );
       } catch (error) {
         return Response.json(
           {
             message: "Error insertando paquete",
             error: String(error),
           },
-          { status: 500 }
+          { status: 500, headers: corsHeaders }
         );
       }
     }
 
-    if (request.method === "GET" && url.pathname.startsWith("/api/packages/")) {
+    if (method === "GET" && url.pathname.startsWith("/api/packages/")) {
       try {
         const id = url.pathname.split("/").pop();
 
@@ -125,24 +158,31 @@ Bun.serve({
         if (rows.length === 0) {
           return Response.json(
             { error: "Paquete no encontrado" },
-            { status: 404 }
+            { status: 404, headers: corsHeaders }
           );
         }
 
-        return Response.json({
-          package: rows[0],
-        });
+        return Response.json(
+          {
+            package: rows[0],
+          },
+          { headers: corsHeaders }
+        );
       } catch (error) {
         return Response.json(
           {
             message: "Error obteniendo paquete",
             error: String(error),
           },
-          { status: 500 }
+          { status: 500, headers: corsHeaders }
         );
       }
     }
 
+    return Response.json(
+      { error: "Ruta no encontrada" },
+      { status: 404, headers: corsHeaders }
+    );
     if (request.method === "PUT" && url.pathname.startsWith("/api/packages/")) {
       try {
         const id = url.pathname.split("/").pop();
@@ -250,4 +290,4 @@ Bun.serve({
   },
 });
 
-console.log("Backend corriendo en http://localhost:3001");
+console.log(`Backend corriendo en http://localhost:${PORT}`);
