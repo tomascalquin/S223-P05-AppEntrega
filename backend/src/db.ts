@@ -1,4 +1,3 @@
-import "dotenv/config";  // Agregar esta línea al inicio
 import "dotenv/config";
 import mysql from "mysql2/promise";
 import type { Pool } from "mysql2/promise";

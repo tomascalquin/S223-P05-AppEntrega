@@ -36,8 +36,6 @@ await createTables();
 
 Bun.serve({
   port: PORT,
-  async fetch(request) {
-  port: 3001,
   async fetch(request: Request) {
     const url = new URL(request.url);
     // # Normalizamos el método para comparar siempre en mayúsculas.
@@ -179,11 +177,7 @@ Bun.serve({
       }
     }
 
-    return Response.json(
-      { error: "Ruta no encontrada" },
-      { status: 404, headers: corsHeaders }
-    );
-    if (request.method === "PUT" && url.pathname.startsWith("/api/packages/")) {
+    if (method === "PUT" && url.pathname.startsWith("/api/packages/")) {
       try {
         const id = url.pathname.split("/").pop();
         const body = (await request.json()) as Record<string, unknown>;
@@ -193,7 +187,7 @@ Bun.serve({
         if (!recipient_name && !apartment_number && !description && !sender && !delivery_date && !status) {
           return Response.json(
             { error: "Al menos un campo debe ser proporcionado" },
-            { status: 400 }
+            { status: 400, headers: corsHeaders }
           );
         }
 
@@ -236,26 +230,29 @@ Bun.serve({
         if (result.affectedRows === 0) {
           return Response.json(
             { error: "Paquete no encontrado" },
-            { status: 404 }
+            { status: 404, headers: corsHeaders }
           );
         }
 
-        return Response.json({
-          message: "Paquete actualizado exitosamente",
-          id: id,
-        });
+        return Response.json(
+          {
+            message: "Paquete actualizado exitosamente",
+            id: id,
+          },
+          { headers: corsHeaders }
+        );
       } catch (error) {
         return Response.json(
           {
             message: "Error actualizando paquete",
             error: String(error),
           },
-          { status: 500 }
+          { status: 500, headers: corsHeaders }
         );
       }
     }
 
-    if (request.method === "DELETE" && url.pathname.startsWith("/api/packages/")) {
+    if (method === "DELETE" && url.pathname.startsWith("/api/packages/")) {
       try {
         const id = url.pathname.split("/").pop();
 
@@ -267,26 +264,32 @@ Bun.serve({
         if (result.affectedRows === 0) {
           return Response.json(
             { error: "Paquete no encontrado" },
-            { status: 404 }
+            { status: 404, headers: corsHeaders }
           );
         }
 
-        return Response.json({
-          message: "Paquete eliminado exitosamente",
-          id: id,
-        });
+        return Response.json(
+          {
+            message: "Paquete eliminado exitosamente",
+            id: id,
+          },
+          { headers: corsHeaders }
+        );
       } catch (error) {
         return Response.json(
           {
             message: "Error eliminando paquete",
             error: String(error),
           },
-          { status: 500 }
+          { status: 500, headers: corsHeaders }
         );
       }
     }
 
-    return Response.json({ error: "Ruta no encontrada" }, { status: 404 });
+    return Response.json(
+      { error: "Ruta no encontrada" },
+      { status: 404, headers: corsHeaders }
+    );
   },
 });
 
