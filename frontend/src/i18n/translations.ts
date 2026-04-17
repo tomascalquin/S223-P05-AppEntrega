@@ -21,6 +21,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "common.logout": "Volver al login",
     "common.loading": "Cargando...",
     "common.retry": "Reintentar",
+    "common.refresh": "Actualizar",
+    "common.save": "Guardar cambios",
+    "common.cancel": "Cancelar",
     "common.role.residente": "residente",
     "common.role.conserje": "conserje",
     "common.roleLabel.residente": "Residente",
@@ -109,6 +112,12 @@ const translations: Record<Locale, Record<string, string>> = {
     "historial.title": "Historial de encomiendas",
     "historial.description":
       "Revisa todas las encomiendas registradas y su estado actual.",
+    "historial.description.conserje":
+      "Revisa todas las encomiendas registradas y actualiza su estado cuando el residente la retire.",
+    "historial.description.residente":
+      "Revisa solo tus encomiendas registradas y el estado en que se encuentran.",
+    "historial.filter.mine":
+      "Mostrando encomiendas asociadas a {{recipient}}.",
     "historial.recentSuccess":
       "Se agregó correctamente la encomienda de {{recipient}} y ya se encuentra en el historial.",
     "historial.recentRecipientFallback": "este residente",
@@ -116,17 +125,51 @@ const translations: Record<Locale, Record<string, string>> = {
     "historial.error.load": "No se pudo cargar el historial.",
     "historial.error.network": "Error al conectar con el servidor.",
     "historial.empty": "Aún no hay encomiendas registradas.",
+    "historial.empty.residente":
+      "Todavía no hay encomiendas registradas a tu nombre.",
     "historial.table.resident": "Residente",
     "historial.table.apartment": "Depto",
     "historial.table.sender": "Remitente",
     "historial.table.deliveryDate": "Fecha entrega",
     "historial.table.createdAt": "Registrada",
     "historial.table.status": "Estado",
+    "historial.table.actions": "Acciones",
     "historial.date.none": "Sin fecha",
     "historial.date.invalid": "Fecha no válida",
     "historial.status.received": "Recibida",
     "historial.status.delivered": "Entregada",
     "historial.status.pending": "Pendiente",
+    "historial.action.markDelivered": "Marcar como entregada",
+    "historial.action.edit": "Editar",
+    "historial.action.editing": "Editando",
+    "historial.action.updating": "Actualizando...",
+    "historial.action.alreadyDelivered": "Ya entregada",
+    "historial.statusUpdate.success":
+      "La encomienda de {{recipient}} fue marcada como entregada.",
+    "historial.statusUpdate.error":
+      "No se pudo actualizar el estado de la encomienda.",
+    "historial.edit.title": "Editar encomienda",
+    "historial.edit.description":
+      "Corrige los datos registrados y guarda los cambios en el backend.",
+    "historial.edit.field.description": "Observaciones",
+    "historial.edit.saving": "Guardando...",
+    "historial.edit.success":
+      "La encomienda de {{recipient}} fue actualizada correctamente.",
+    "historial.edit.error": "No se pudo guardar la edición.",
+    "historial.edit.validation.recipient.required":
+      "El nombre del residente es obligatorio.",
+    "historial.edit.validation.apartment.required":
+      "El departamento es obligatorio.",
+    "historial.edit.validation.apartment.invalid":
+      "Usa un formato válido, por ejemplo 101 o A-12.",
+    "historial.edit.validation.sender.required":
+      "El remitente es obligatorio.",
+    "historial.edit.validation.deliveryDate.future":
+      "La fecha no puede ser posterior al día actual.",
+    "historial.edit.validation.status.required":
+      "Selecciona un estado para la encomienda.",
+    "historial.edit.validation.general":
+      "Corrige los campos marcados antes de guardar la edición.",
     "conserje.title": "Registrar encomienda",
     "conserje.field.recipient": "Nombre residente *",
     "conserje.field.apartment": "Departamento *",
@@ -166,6 +209,16 @@ const translations: Record<Locale, Record<string, string>> = {
     "conserje.submit": "Registrar encomienda",
     "conserje.submitting": "Registrando...",
     "residente.title": "Mis encomiendas",
+    "residente.description":
+      "Consulta tus encomiendas recientes y revisa rápidamente su estado.",
+    "residente.filter.mine":
+      "Tablero filtrado para {{recipient}}.",
+    "residente.loading": "Cargando tus encomiendas...",
+    "residente.error.load": "No se pudieron cargar tus encomiendas.",
+    "residente.stats.received": "Recibidas",
+    "residente.stats.pending": "Pendientes",
+    "residente.stats.delivered": "Entregadas",
+    "residente.section.recent": "Últimas encomiendas",
     "residente.empty": "Todavía no tienes encomiendas recientes.",
     "residente.item.one": "Encomienda 1 - Entregada",
     "residente.item.two": "Encomienda 2 - Pendiente",
@@ -180,6 +233,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "common.logout": "Back to login",
     "common.loading": "Loading...",
     "common.retry": "Retry",
+    "common.refresh": "Refresh",
+    "common.save": "Save changes",
+    "common.cancel": "Cancel",
     "common.role.residente": "resident",
     "common.role.conserje": "concierge",
     "common.roleLabel.residente": "Resident",
@@ -266,6 +322,12 @@ const translations: Record<Locale, Record<string, string>> = {
     "historial.title": "Package history",
     "historial.description":
       "Review every registered package and its current status.",
+    "historial.description.conserje":
+      "Review every registered package and update the status when the resident picks it up.",
+    "historial.description.residente":
+      "Review only your registered packages and the status they are currently in.",
+    "historial.filter.mine":
+      "Showing packages associated with {{recipient}}.",
     "historial.recentSuccess":
       "The package for {{recipient}} was added successfully and is already in the history.",
     "historial.recentRecipientFallback": "this resident",
@@ -273,17 +335,50 @@ const translations: Record<Locale, Record<string, string>> = {
     "historial.error.load": "The history could not be loaded.",
     "historial.error.network": "Error connecting to the server.",
     "historial.empty": "There are no registered packages yet.",
+    "historial.empty.residente":
+      "There are no packages registered under your name yet.",
     "historial.table.resident": "Resident",
     "historial.table.apartment": "Apt",
     "historial.table.sender": "Sender",
     "historial.table.deliveryDate": "Delivery date",
     "historial.table.createdAt": "Created",
     "historial.table.status": "Status",
+    "historial.table.actions": "Actions",
     "historial.date.none": "No date",
     "historial.date.invalid": "Invalid date",
     "historial.status.received": "Received",
     "historial.status.delivered": "Delivered",
     "historial.status.pending": "Pending",
+    "historial.action.markDelivered": "Mark as delivered",
+    "historial.action.edit": "Edit",
+    "historial.action.editing": "Editing",
+    "historial.action.updating": "Updating...",
+    "historial.action.alreadyDelivered": "Already delivered",
+    "historial.statusUpdate.success":
+      "The package for {{recipient}} was marked as delivered.",
+    "historial.statusUpdate.error":
+      "The package status could not be updated.",
+    "historial.edit.title": "Edit package",
+    "historial.edit.description":
+      "Correct the stored data and save the changes to the backend.",
+    "historial.edit.field.description": "Notes",
+    "historial.edit.saving": "Saving...",
+    "historial.edit.success":
+      "The package for {{recipient}} was updated successfully.",
+    "historial.edit.error": "The changes could not be saved.",
+    "historial.edit.validation.recipient.required":
+      "Resident name is required.",
+    "historial.edit.validation.apartment.required":
+      "Apartment is required.",
+    "historial.edit.validation.apartment.invalid":
+      "Use a valid format such as 101 or A-12.",
+    "historial.edit.validation.sender.required": "Sender is required.",
+    "historial.edit.validation.deliveryDate.future":
+      "The date cannot be later than today.",
+    "historial.edit.validation.status.required":
+      "Select a status for the package.",
+    "historial.edit.validation.general":
+      "Fix the highlighted fields before saving the changes.",
     "conserje.title": "Register package",
     "conserje.field.recipient": "Resident name *",
     "conserje.field.apartment": "Apartment *",
@@ -322,6 +417,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "conserje.submit": "Register package",
     "conserje.submitting": "Registering...",
     "residente.title": "My packages",
+    "residente.description":
+      "Check your recent packages and quickly review their status.",
+    "residente.filter.mine": "Dashboard filtered for {{recipient}}.",
+    "residente.loading": "Loading your packages...",
+    "residente.error.load": "Your packages could not be loaded.",
+    "residente.stats.received": "Received",
+    "residente.stats.pending": "Pending",
+    "residente.stats.delivered": "Delivered",
+    "residente.section.recent": "Latest packages",
     "residente.empty": "You do not have any recent packages yet.",
     "residente.item.one": "Package 1 - Delivered",
     "residente.item.two": "Package 2 - Pending",

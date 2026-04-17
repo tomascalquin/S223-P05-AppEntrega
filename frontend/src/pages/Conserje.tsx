@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../context/I18nContext";
+import { createPackage } from "../services/packages";
 
 // # Este tipo representa exactamente los nombres que hoy espera el backend.
 // # Así evitamos tener que traducir campos antes del fetch.
@@ -38,9 +39,6 @@ const initialErrors: PackageFormErrors = {
   sender: "",
   delivery_date: "",
 };
-
-// # URL base del backend actual.
-const API_URL = "http://localhost:3001";
 
 // # Esta función construye la fecha local de hoy en formato YYYY-MM-DD.
 // # Evitamos toISOString para que la zona horaria no corra el día hacia adelante o atrás.
@@ -195,8 +193,8 @@ const Conserje = () => {
     setIsSubmitting(true);
 
     try {
-      // # Este payload usa exactamente los nombres que hoy espera el backend.
-      // # No enviamos urgencia todavía porque el backend actual aún no tiene esa columna.
+      // # Este payload usa exactamente los nombres que espera el backend.
+      // # La urgencia sigue siendo visual en frontend porque la tabla actual no guarda ese dato.
       const payload = {
         recipient_name: normalizedData.recipient_name,
         apartment_number: normalizedData.apartment_number,
@@ -204,27 +202,11 @@ const Conserje = () => {
         delivery_date: normalizedData.delivery_date,
       };
 
-      const response = await fetch(`${API_URL}/api/packages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      // # Si el backend devuelve JSON, lo leemos para mostrar mejor el resultado.
-      const contentType = response.headers.get("content-type") ?? "";
-      const responseData = contentType.includes("application/json")
-        ? await response.json()
-        : null;
-
-      if (!response.ok) {
-        const backendMessage =
-          responseData?.message ?? t("conserje.error.submit");
-        throw new Error(backendMessage);
-      }
-
-      console.log("Respuesta backend:", responseData);
+      // # `createPackage` ya se encarga de:
+      // # 1. Hacer el POST
+      // # 2. Validar que la respuesta tenga la forma correcta
+      // # 3. Lanzar errores claros si algo falla
+      const createdPackage = await createPackage(payload);
 
       // # Incluimos la urgencia en el mensaje visual para que el usuario vea qué eligió,
       // # aunque por ahora esa información no viaje al backend.
@@ -245,8 +227,8 @@ const Conserje = () => {
       // # Así la siguiente pantalla puede refrescar y destacar la encomienda agregada.
       navigate("/conserje/historial", {
         state: {
-          recentlyCreatedId: responseData?.id,
-          recentlyCreatedRecipient: normalizedData.recipient_name,
+          recentlyCreatedId: createdPackage.id,
+          recentlyCreatedRecipient: createdPackage.recipient_name,
         },
       });
     } catch (error) {
