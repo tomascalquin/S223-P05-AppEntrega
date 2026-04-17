@@ -1,13 +1,21 @@
-const Residente = () => {
-  return (
-    <div>
-      <h2 className="text-2xl font-bold">Mis Encomiendas</h2>
+import { useI18n } from "../context/I18nContext";
 
-      <ul className="mt-4">
-        <li className="border p-2">Encomienda 1 - Entregada</li>
-        <li className="border p-2">Encomienda 2 - Pendiente</li>
+const Residente = () => {
+  const { t } = useI18n();
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-2xl font-bold">{t("residente.title")}</h2>
+
+      <ul className="grid gap-3 sm:grid-cols-2">
+        <li className="rounded-xl border border-white/10 bg-[#2a2a2a] p-4">
+          {t("residente.item.one")}
+        </li>
+        <li className="rounded-xl border border-white/10 bg-[#2a2a2a] p-4">
+          {t("residente.item.two")}
+        </li>
       </ul>
-    </div>
+    </section>
   );
 };
 

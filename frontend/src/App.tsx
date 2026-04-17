@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { getHomePathForRole } from "./services/auth";
 
 import Login from "./pages/Login";
 import Conserje from "./pages/Conserje";
@@ -9,24 +10,21 @@ import MainLayout from "./layouts/MainLayout";
 
 const App = () => {
   const { user } = useAuth();
+  const defaultAuthenticatedRoute = user ? getHomePathForRole(user.role) : "/";
 
   return (
     <Routes>
-      {/* Ruta pública */}
       <Route
         path="/"
         element={
-          user?.role === "conserje" ? (
-            <Navigate to="/conserje" replace />
-          ) : user?.role === "residente" ? (
-            <Navigate to="/residente" replace />
+          user ? (
+            <Navigate to={defaultAuthenticatedRoute} replace />
           ) : (
             <Login />
           )
         }
       />
 
-      {/* Ruta protegida con layout */}
       <Route
         path="/conserje"
         element={
@@ -35,12 +33,11 @@ const App = () => {
               <Conserje />
             </MainLayout>
           ) : (
-            <Navigate to="/" />
+            <Navigate to={defaultAuthenticatedRoute} replace />
           )
         }
       />
 
-      {/* Ruta protegida para que el conserje vea el historial real desde el backend. */}
       <Route
         path="/conserje/historial"
         element={
@@ -49,7 +46,7 @@ const App = () => {
               <HistorialEncomiendas />
             </MainLayout>
           ) : (
-            <Navigate to="/" />
+            <Navigate to={defaultAuthenticatedRoute} replace />
           )
         }
       />
@@ -62,12 +59,11 @@ const App = () => {
               <HistorialEncomiendas />
             </MainLayout>
           ) : (
-            <Navigate to="/" />
+            <Navigate to={defaultAuthenticatedRoute} replace />
           )
         }
       />
 
-      {/* Ruta adicional para que el residente tenga su acceso separado a "Mis encomiendas". */}
       <Route
         path="/residente/mis-encomiendas"
         element={
@@ -76,9 +72,14 @@ const App = () => {
               <Residente />
             </MainLayout>
           ) : (
-            <Navigate to="/" />
+            <Navigate to={defaultAuthenticatedRoute} replace />
           )
         }
+      />
+
+      <Route
+        path="*"
+        element={<Navigate to={defaultAuthenticatedRoute} replace />}
       />
     </Routes>
   );

@@ -1,55 +1,97 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+import { useI18n } from "../context/I18nContext";
 
-// # Cada rol ve solo las rutas que hoy existen realmente en la aplicación.
 const navigationByRole = {
   conserje: [
-    { label: "Registrar encomienda", to: "/conserje" },
-    { label: "Historial", to: "/conserje/historial" },
+    { labelKey: "nav.registerPackage", to: "/conserje" },
+    { labelKey: "nav.history", to: "/conserje/historial" },
   ],
   residente: [
-    { label: "Historial de encomiendas", to: "/residente" },
-    { label: "Mis encomiendas", to: "/residente/mis-encomiendas" },
+    { labelKey: "nav.packageHistory", to: "/residente" },
+    { labelKey: "nav.myPackages", to: "/residente/mis-encomiendas" },
   ],
 };
 
 const MainLayout = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
+  const { t } = useI18n();
+  const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
+
+  const navigationItems = user ? navigationByRole[user.role] : [];
+
+  const renderNavigation = (className: string) => (
+    // # Reutilizamos la misma navegación en desktop y móvil para no duplicar reglas por rol.
+    <nav className={className}>
+      {navigationItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          onClick={() => setIsMobileNavigationOpen(false)}
+          className={({ isActive }) =>
+            `rounded-xl px-3 py-2 text-left transition ${
+              isActive
+                ? "bg-green-600 text-white"
+                : "text-gray-200 hover:bg-[#3a3a3a]"
+            }`
+          }
+        >
+          {t(item.labelKey)}
+        </NavLink>
+      ))}
+    </nav>
+  );
 
   return (
     <div className="min-h-screen bg-[#1f1f1f] text-white">
-      <Navbar />
+      <Navbar
+        onToggleMobileNavigation={() =>
+          setIsMobileNavigationOpen((current) => !current)
+        }
+      />
 
-      <div className="flex">
-        {/* SIDEBAR */}
-        <aside className="w-64 bg-[#2a2a2a] p-4">
-          <h1 className="mb-6 text-lg font-bold text-green-400">EncomBox</h1>
-
-          <nav className="flex flex-col gap-3">
-            {/* # Este menú usa rutas reales para que la navegación lateral sí funcione. */}
-            {user &&
-              navigationByRole[user.role].map((item) => (
+      <div className="border-b border-white/10 bg-[#222] px-4 py-3 md:hidden">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-gray-400">
+          {t("layout.navigation")}
+        </p>
+        {isMobileNavigationOpen ? (
+          renderNavigation("flex flex-col gap-2")
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="flex min-w-max gap-2">
+              {navigationItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
-                    `rounded p-2 text-left transition ${
+                    `rounded-full px-3 py-2 text-sm transition ${
                       isActive
                         ? "bg-green-600 text-white"
-                        : "text-gray-200 hover:bg-[#3a3a3a]"
+                        : "bg-white/5 text-gray-200 hover:bg-[#3a3a3a]"
                     }`
                   }
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </NavLink>
               ))}
-          </nav>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="md:flex">
+        <aside className="hidden w-64 bg-[#2a2a2a] p-4 md:block">
+          <h1 className="mb-6 text-lg font-bold text-green-400">
+            {t("common.appName")}
+          </h1>
+
+          {renderNavigation("flex flex-col gap-3")}
         </aside>
 
-        {/* CONTENIDO */}
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "../context/I18nContext";
 
 // # Este tipo representa exactamente los nombres que hoy espera el backend.
 // # Así evitamos tener que traducir campos antes del fetch.
@@ -77,6 +78,7 @@ const isDateAfterToday = (dateValue: string, todayValue: string) => {
 };
 
 const Conserje = () => {
+  const { t } = useI18n();
   // # Esta navegación nos permite llevar al usuario al historial tras registrar la encomienda.
   const navigate = useNavigate();
 
@@ -104,25 +106,23 @@ const Conserje = () => {
     const nextErrors: PackageFormErrors = { ...initialErrors };
 
     if (!values.recipient_name.trim()) {
-      nextErrors.recipient_name = "El nombre del residente es obligatorio.";
+      nextErrors.recipient_name = t("conserje.validation.recipient.required");
     }
 
     if (!values.apartment_number.trim()) {
-      nextErrors.apartment_number = "El departamento es obligatorio.";
+      nextErrors.apartment_number = t("conserje.validation.apartment.required");
     } else if (!/^[A-Za-z0-9-]{1,10}$/.test(values.apartment_number.trim())) {
-      nextErrors.apartment_number =
-        "Usa un formato válido, por ejemplo 101 o A-12.";
+      nextErrors.apartment_number = t("conserje.validation.apartment.invalid");
     }
 
     if (!values.sender.trim()) {
-      nextErrors.sender = "El remitente es obligatorio.";
+      nextErrors.sender = t("conserje.validation.sender.required");
     }
 
     if (!values.delivery_date.trim()) {
-      nextErrors.delivery_date = "La fecha es obligatoria.";
+      nextErrors.delivery_date = t("conserje.validation.deliveryDate.required");
     } else if (isDateAfterToday(values.delivery_date, maxDeliveryDate)) {
-      nextErrors.delivery_date =
-        "La fecha no puede ser posterior al dia actual.";
+      nextErrors.delivery_date = t("conserje.validation.deliveryDate.future");
     }
 
     return nextErrors;
@@ -188,7 +188,7 @@ const Conserje = () => {
     setFieldErrors(validationErrors);
 
     if (hasValidationErrors(validationErrors)) {
-      setErrorMessage("Corrige los campos marcados antes de continuar.");
+      setErrorMessage(t("conserje.validation.general"));
       return;
     }
 
@@ -220,7 +220,7 @@ const Conserje = () => {
 
       if (!response.ok) {
         const backendMessage =
-          responseData?.message ?? "Error al registrar la encomienda.";
+          responseData?.message ?? t("conserje.error.submit");
         throw new Error(backendMessage);
       }
 
@@ -229,9 +229,13 @@ const Conserje = () => {
       // # Incluimos la urgencia en el mensaje visual para que el usuario vea qué eligió,
       // # aunque por ahora esa información no viaje al backend.
       setSuccessMessage(
-        `Encomienda registrada correctamente como ${
-          normalizedData.urgency === "urgent" ? "urgente" : "no urgente"
-        }.`
+        t("conserje.success", {
+          urgency: t(
+            normalizedData.urgency === "urgent"
+              ? "conserje.success.urgent"
+              : "conserje.success.normal"
+          ),
+        })
       );
 
       setFormData(initialFormData);
@@ -251,7 +255,7 @@ const Conserje = () => {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Error al conectar con el servidor."
+          : t("conserje.error.network")
       );
     } finally {
       setIsSubmitting(false);
@@ -262,19 +266,19 @@ const Conserje = () => {
     <div className="flex flex-col gap-6">
       {/* # Título principal de la vista */}
       <h1 className="text-2xl font-semibold text-white">
-        Registrar encomienda
+        {t("conserje.title")}
       </h1>
 
       {/* # Tarjeta principal del formulario */}
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="flex max-w-xl flex-col gap-4 rounded-xl bg-[#2a2a2a] p-6"
+        className="flex w-full max-w-xl flex-col gap-4 rounded-xl bg-[#2a2a2a] p-4 sm:p-6"
       >
         {/* # Campo compatible con recipient_name del backend */}
         <div>
           <label htmlFor="recipient_name" className="text-sm text-gray-300">
-            Nombre residente *
+            {t("conserje.field.recipient")}
           </label>
           <input
             id="recipient_name"
@@ -282,7 +286,7 @@ const Conserje = () => {
             name="recipient_name"
             value={formData.recipient_name}
             onChange={handleChange}
-            placeholder="Ej: Camila Soto"
+            placeholder={t("conserje.placeholder.recipient")}
             aria-invalid={fieldErrors.recipient_name !== ""}
             className={`mt-1 w-full rounded border bg-[#1f1f1f] p-2 text-white focus:outline-none ${
               fieldErrors.recipient_name
@@ -300,7 +304,7 @@ const Conserje = () => {
         {/* # Campo compatible con apartment_number del backend */}
         <div>
           <label htmlFor="apartment_number" className="text-sm text-gray-300">
-            Departamento *
+            {t("conserje.field.apartment")}
           </label>
           <input
             id="apartment_number"
@@ -308,7 +312,7 @@ const Conserje = () => {
             name="apartment_number"
             value={formData.apartment_number}
             onChange={handleChange}
-            placeholder="Ej: 101 o A-12"
+            placeholder={t("conserje.placeholder.apartment")}
             aria-invalid={fieldErrors.apartment_number !== ""}
             className={`mt-1 w-full rounded border bg-[#1f1f1f] p-2 text-white focus:outline-none ${
               fieldErrors.apartment_number
@@ -326,7 +330,7 @@ const Conserje = () => {
         {/* # Campo compatible con sender del backend */}
         <div>
           <label htmlFor="sender" className="text-sm text-gray-300">
-            Remitente *
+            {t("conserje.field.sender")}
           </label>
           <input
             id="sender"
@@ -334,7 +338,7 @@ const Conserje = () => {
             name="sender"
             value={formData.sender}
             onChange={handleChange}
-            placeholder="Ej: Mercado Libre"
+            placeholder={t("conserje.placeholder.sender")}
             aria-invalid={fieldErrors.sender !== ""}
             className={`mt-1 w-full rounded border bg-[#1f1f1f] p-2 text-white focus:outline-none ${
               fieldErrors.sender
@@ -350,7 +354,7 @@ const Conserje = () => {
         {/* # Campo compatible con delivery_date del backend */}
         <div>
           <label htmlFor="delivery_date" className="text-sm text-gray-300">
-            Fecha de entrega *
+            {t("conserje.field.deliveryDate")}
           </label>
           <input
             id="delivery_date"
@@ -367,7 +371,7 @@ const Conserje = () => {
             }`}
           />
           <p className="mt-1 text-xs text-gray-500">
-            Fecha maxima permitida: {maxDeliveryDate}
+            {t("conserje.maxDate", { date: maxDeliveryDate })}
           </p>
           {fieldErrors.delivery_date && (
             <p className="mt-1 text-sm text-red-400">
@@ -379,8 +383,8 @@ const Conserje = () => {
         {/* # Selector visual de urgencia.
             # Por ahora es un dato solo del frontend hasta que el backend soporte ese campo. */}
         <div>
-          <p className="text-sm text-gray-300">Urgencia</p>
-          <div className="mt-2 flex gap-3">
+          <p className="text-sm text-gray-300">{t("conserje.field.urgency")}</p>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={() => handleUrgencyChange("normal")}
@@ -390,7 +394,7 @@ const Conserje = () => {
                   : "border-gray-600 bg-[#1f1f1f] text-gray-300 hover:bg-[#2f2f2f]"
               }`}
             >
-              No urgente
+              {t("conserje.urgency.normal")}
             </button>
             <button
               type="button"
@@ -401,13 +405,13 @@ const Conserje = () => {
                   : "border-gray-600 bg-[#1f1f1f] text-gray-300 hover:bg-[#2f2f2f]"
               }`}
             >
-              Urgente
+              {t("conserje.urgency.urgent")}
             </button>
           </div>
           <p className="mt-2 text-xs text-gray-500">
             {formData.urgency === "urgent"
-              ? "Se marcara visualmente como urgente en esta pantalla."
-              : "Se registrara como no urgente en esta pantalla."}
+              ? t("conserje.urgency.urgentHelp")
+              : t("conserje.urgency.normalHelp")}
           </p>
         </div>
 
@@ -431,7 +435,7 @@ const Conserje = () => {
           disabled={isSubmitting}
           className="rounded bg-green-600 p-2 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? "Registrando..." : "Registrar encomienda"}
+          {isSubmitting ? t("conserje.submitting") : t("conserje.submit")}
         </button>
       </form>
     </div>
