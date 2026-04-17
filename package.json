@@ -1,12 +1,4 @@
 {
-  "name": "backend",
-  "module": "src/server.ts",
-  "type": "module",
-  "scripts": {
-    "dev": "bun run src/server.ts",
-    "start": "bun run src/server.ts",
-    "test-db": "bun run tests/test-db.ts"
-  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -14,7 +6,7 @@
     "express": "^5.2.1",
     "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.22.1"
+    "vite": "^8.0.8"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
