@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useI18n } from "../context/I18nContext";
 
 // # Este tipo describe exactamente la forma en que el backend devuelve cada encomienda.
 type PackageItem = {
@@ -27,13 +28,6 @@ type HistorialLocationState = {
 // # URL base del backend actual.
 const API_URL = "http://localhost:3001";
 
-// # Este mapa traduce el estado técnico del backend a un texto legible en la UI.
-const statusLabels: Record<PackageItem["status"], string> = {
-  received: "Recibida",
-  delivered: "Entregada",
-  pending: "Pendiente",
-};
-
 // # Este mapa define el color visual de cada estado.
 const statusClasses: Record<PackageItem["status"], string> = {
   received: "bg-blue-500/15 text-blue-300 border border-blue-500/30",
@@ -41,26 +35,34 @@ const statusClasses: Record<PackageItem["status"], string> = {
   pending: "bg-yellow-500/15 text-yellow-300 border border-yellow-500/30",
 };
 
-// # Esta función formatea fechas del backend a un texto simple para el usuario.
-const formatDate = (value: string | null) => {
-  if (!value) {
-    return "Sin fecha";
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "Fecha no valida";
-  }
-
-  return parsedDate.toLocaleDateString("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
-
 const HistorialEncomiendas = () => {
+  const { t, localeTag } = useI18n();
+
+  // # Esta función formatea fechas del backend a un texto simple para el usuario.
+  const formatDate = (value: string | null) => {
+    if (!value) {
+      return t("historial.date.none");
+    }
+
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return t("historial.date.invalid");
+    }
+
+    return parsedDate.toLocaleDateString(localeTag, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const statusLabels: Record<PackageItem["status"], string> = {
+    received: t("historial.status.received"),
+    delivered: t("historial.status.delivered"),
+    pending: t("historial.status.pending"),
+  };
+
   // # Leemos el estado de navegación para saber si venimos desde un registro recién creado.
   const location = useLocation();
   const navigationState = (location.state ?? {}) as HistorialLocationState;
@@ -90,9 +92,9 @@ const HistorialEncomiendas = () => {
         const backendMessage =
           responseData && "message" in responseData
             ? responseData.message
-            : "No se pudo cargar el historial.";
+            : t("historial.error.load");
 
-        throw new Error(backendMessage || "No se pudo cargar el historial.");
+        throw new Error(backendMessage || t("historial.error.load"));
       }
 
       setPackages(
@@ -102,9 +104,7 @@ const HistorialEncomiendas = () => {
       console.error(error);
 
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Error al conectar con el servidor."
+        error instanceof Error ? error.message : t("historial.error.network")
       );
     } finally {
       setIsLoading(false);
@@ -121,26 +121,28 @@ const HistorialEncomiendas = () => {
       {/* # Encabezado de la pantalla de historial. */}
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold text-white">
-          Historial de encomiendas
+          {t("historial.title")}
         </h1>
         <p className="text-sm text-gray-400">
-          Revisa todas las encomiendas registradas y su estado actual.
+          {t("historial.description")}
         </p>
       </div>
 
       {/* # Si venimos desde el formulario, mostramos un aviso para confirmar el registro reciente. */}
       {navigationState.recentlyCreatedId && (
         <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-200">
-          Se agrego correctamente la encomienda de{" "}
-          {navigationState.recentlyCreatedRecipient ?? "este residente"} y ya se
-          encuentra en el historial.
+          {t("historial.recentSuccess", {
+            recipient:
+              navigationState.recentlyCreatedRecipient ??
+              t("historial.recentRecipientFallback"),
+          })}
         </div>
       )}
 
       {/* # Estado de carga mientras esperamos la respuesta del backend. */}
       {isLoading && (
         <div className="rounded-xl border border-white/10 bg-[#2a2a2a] p-5 text-sm text-gray-300">
-          Cargando encomiendas...
+          {t("historial.loading")}
         </div>
       )}
 
@@ -154,7 +156,7 @@ const HistorialEncomiendas = () => {
               onClick={() => void loadPackages()}
               className="rounded-lg bg-red-500 px-4 py-2 font-medium text-white transition hover:bg-red-400"
             >
-              Reintentar
+              {t("common.retry")}
             </button>
           </div>
         </div>
@@ -163,7 +165,7 @@ const HistorialEncomiendas = () => {
       {/* # Estado vacío cuando la carga fue correcta, pero todavía no hay registros. */}
       {!isLoading && !errorMessage && packages.length === 0 && (
         <div className="rounded-xl border border-white/10 bg-[#2a2a2a] p-5 text-sm text-gray-300">
-          Aun no hay encomiendas registradas.
+          {t("historial.empty")}
         </div>
       )}
 
@@ -174,12 +176,24 @@ const HistorialEncomiendas = () => {
             <table className="min-w-full text-left text-sm text-white">
               <thead className="bg-white/5 text-gray-400">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Residente</th>
-                  <th className="px-4 py-3 font-medium">Depto</th>
-                  <th className="px-4 py-3 font-medium">Remitente</th>
-                  <th className="px-4 py-3 font-medium">Fecha entrega</th>
-                  <th className="px-4 py-3 font-medium">Registrada</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
+                  <th className="px-4 py-3 font-medium">
+                    {t("historial.table.resident")}
+                  </th>
+                  <th className="px-4 py-3 font-medium">
+                    {t("historial.table.apartment")}
+                  </th>
+                  <th className="px-4 py-3 font-medium">
+                    {t("historial.table.sender")}
+                  </th>
+                  <th className="px-4 py-3 font-medium">
+                    {t("historial.table.deliveryDate")}
+                  </th>
+                  <th className="px-4 py-3 font-medium">
+                    {t("historial.table.createdAt")}
+                  </th>
+                  <th className="px-4 py-3 font-medium">
+                    {t("historial.table.status")}
+                  </th>
                 </tr>
               </thead>
 
