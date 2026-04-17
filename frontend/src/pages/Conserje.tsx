@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
 // # Este tipo representa exactamente los nombres que hoy espera el backend.
 // # Así evitamos tener que traducir campos antes del fetch.
@@ -40,7 +41,48 @@ const initialErrors: PackageFormErrors = {
 // # URL base del backend actual.
 const API_URL = "http://localhost:3001";
 
+// # Esta función construye la fecha local de hoy en formato YYYY-MM-DD.
+// # Evitamos toISOString para que la zona horaria no corra el día hacia adelante o atrás.
+const getTodayDateValue = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+// # Esta función convierte una fecha YYYY-MM-DD a una fecha local a medianoche.
+// # Así evitamos comparaciones incorrectas por formato o zona horaria.
+const parseDateInput = (dateValue: string) => {
+  const [year, month, day] = dateValue.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+};
+
+// # Esta función compara fechas como objetos Date reales y no como texto.
+const isDateAfterToday = (dateValue: string, todayValue: string) => {
+  const selectedDate = parseDateInput(dateValue);
+  const todayDate = parseDateInput(todayValue);
+
+  if (!selectedDate || !todayDate) {
+    return false;
+  }
+
+  return selectedDate.getTime() > todayDate.getTime();
+};
+
 const Conserje = () => {
+  // # Esta navegación nos permite llevar al usuario al historial tras registrar la encomienda.
+  const navigate = useNavigate();
+
+  // # Guardamos la fecha máxima permitida para que el usuario no pueda elegir días futuros.
+  const maxDeliveryDate = getTodayDateValue();
+
   // # Estado principal del formulario.
   const [formData, setFormData] = useState<PackageFormData>(initialFormData);
 
@@ -78,6 +120,9 @@ const Conserje = () => {
 
     if (!values.delivery_date.trim()) {
       nextErrors.delivery_date = "La fecha es obligatoria.";
+    } else if (isDateAfterToday(values.delivery_date, maxDeliveryDate)) {
+      nextErrors.delivery_date =
+        "La fecha no puede ser posterior al dia actual.";
     }
 
     return nextErrors;
@@ -191,6 +236,15 @@ const Conserje = () => {
 
       setFormData(initialFormData);
       setFieldErrors(initialErrors);
+
+      // # Después del alta navegamos al historial y enviamos el id recién creado.
+      // # Así la siguiente pantalla puede refrescar y destacar la encomienda agregada.
+      navigate("/conserje/historial", {
+        state: {
+          recentlyCreatedId: responseData?.id,
+          recentlyCreatedRecipient: normalizedData.recipient_name,
+        },
+      });
     } catch (error) {
       console.error(error);
 
@@ -304,6 +358,7 @@ const Conserje = () => {
             name="delivery_date"
             value={formData.delivery_date}
             onChange={handleChange}
+            max={maxDeliveryDate}
             aria-invalid={fieldErrors.delivery_date !== ""}
             className={`mt-1 w-full rounded border bg-[#1f1f1f] p-2 text-white focus:outline-none ${
               fieldErrors.delivery_date
@@ -311,6 +366,9 @@ const Conserje = () => {
                 : "border-gray-600 focus:border-green-500"
             }`}
           />
+          <p className="mt-1 text-xs text-gray-500">
+            Fecha maxima permitida: {maxDeliveryDate}
+          </p>
           {fieldErrors.delivery_date && (
             <p className="mt-1 text-sm text-red-400">
               {fieldErrors.delivery_date}

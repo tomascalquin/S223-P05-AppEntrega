@@ -1,7 +1,23 @@
 import type { ReactNode } from "react";
+import { NavLink } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { useAuth } from "../context/AuthContext";
+
+// # Cada rol ve solo las rutas que hoy existen realmente en la aplicación.
+const navigationByRole = {
+  conserje: [
+    { label: "Registrar encomienda", to: "/conserje" },
+    { label: "Historial", to: "/conserje/historial" },
+  ],
+  residente: [
+    { label: "Historial de encomiendas", to: "/residente" },
+    { label: "Mis encomiendas", to: "/residente/mis-encomiendas" },
+  ],
+};
 
 const MainLayout = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-[#1f1f1f] text-white">
       <Navbar />
@@ -12,15 +28,23 @@ const MainLayout = ({ children }: { children: ReactNode }) => {
           <h1 className="mb-6 text-lg font-bold text-green-400">EncomBox</h1>
 
           <nav className="flex flex-col gap-3">
-            <button className="rounded bg-green-600 p-2 text-left">
-              Dashboard
-            </button>
-            <button className="rounded p-2 text-left hover:bg-[#3a3a3a]">
-              Encomiendas
-            </button>
-            <button className="rounded p-2 text-left hover:bg-[#3a3a3a]">
-              Notificaciones
-            </button>
+            {/* # Este menú usa rutas reales para que la navegación lateral sí funcione. */}
+            {user &&
+              navigationByRole[user.role].map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `rounded p-2 text-left transition ${
+                      isActive
+                        ? "bg-green-600 text-white"
+                        : "text-gray-200 hover:bg-[#3a3a3a]"
+                    }`
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ))}
           </nav>
         </aside>
 
