@@ -1,4 +1,4 @@
-import db from "./db";
+import db from "./src/db";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 type PackageStatus = "received" | "delivered" | "pending";
