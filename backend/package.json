@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "bun run server.ts",
     "start": "bun run server.ts",
-    "test-db": "bun run tests/test-db.ts"
+    "test-db": "bun run tests/test-db.ts",
+    "test:packages": "bun run tests/test-package-flow.ts"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
