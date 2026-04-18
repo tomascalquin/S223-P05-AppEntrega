@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
   authenticateUser,
+  authenticateWithGoogle,
   clearStoredSession,
   getAuthErrorMessage,
   getStoredSession,
@@ -23,6 +24,7 @@ interface AuthContextType {
   isAuthenticating: boolean;
   isCheckingSession: boolean;
   login: (credentials: LoginCredentials) => Promise<LoginResult>;
+  loginWithGoogle: (googleCredential: string, role: Role) => Promise<AuthUser>;
   verifyOtp: (
     challenge: PendingOtpChallenge,
     otpCode: string
@@ -109,6 +111,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const loginWithGoogle = async (googleCredential: string, role: Role) => {
+    setIsAuthenticating(true);
+    setAuthError("");
+
+    try {
+      const authenticatedSession = await authenticateWithGoogle(
+        googleCredential,
+        role
+      );
+      saveStoredSession(authenticatedSession);
+      setUser(authenticatedSession.user);
+      return authenticatedSession.user;
+    } catch (error) {
+      setAuthError(getAuthErrorMessage(error));
+      throw error;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
   const verifyOtp = async (
     challenge: PendingOtpChallenge,
     otpCode: string
@@ -164,6 +186,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticating,
         isCheckingSession,
         login,
+        loginWithGoogle,
         verifyOtp,
         register,
         logout,

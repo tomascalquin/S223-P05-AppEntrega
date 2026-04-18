@@ -47,6 +47,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.loginButton": "Entrar como {{role}}",
     "auth.registerButton": "Registrarme como {{role}}",
     "auth.verifyOtpButton": "Validar código OTP",
+    "auth.googleDivider": "o continúa con",
+    "auth.googleLoading": "Cargando acceso con Google...",
     "auth.loadingLogin":
       "Validando acceso de {{role}} y preparando tu dashboard...",
     "auth.loadingRegister":
@@ -58,6 +60,8 @@ const translations: Record<Locale, Record<string, string>> = {
       "Cuenta creada correctamente. Redirigiendo al {{destination}}.",
     "auth.success.otp":
       "OTP validado correctamente. Redirigiendo al {{destination}}.",
+    "auth.success.google":
+      "Sesión iniciada con Google. Redirigiendo al {{destination}}.",
     "auth.success.otpSent":
       "Se generó un OTP temporal. Ingresa el código para continuar.",
     "auth.success.otpSentWithPreview":
@@ -130,6 +134,8 @@ const translations: Record<Locale, Record<string, string>> = {
       "El servicio de autenticación respondió con un formato inválido.",
     "auth.errors.userAlreadyExists":
       "Ya existe una cuenta con ese email o nombre de usuario.",
+    "auth.errors.googleLogin":
+      "No se pudo completar el acceso con Google. Intenta nuevamente.",
     "auth.errors.generic":
       "No se pudo completar la autenticación. Intenta nuevamente en unos segundos.",
     "layout.navigation": "Navegación",
@@ -283,6 +289,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.loginButton": "Sign in as {{role}}",
     "auth.registerButton": "Sign up as {{role}}",
     "auth.verifyOtpButton": "Verify OTP code",
+    "auth.googleDivider": "or continue with",
+    "auth.googleLoading": "Loading Google sign in...",
     "auth.loadingLogin":
       "Validating {{role}} access and preparing your dashboard...",
     "auth.loadingRegister":
@@ -294,6 +302,8 @@ const translations: Record<Locale, Record<string, string>> = {
       "Account created successfully. Redirecting to the {{destination}}.",
     "auth.success.otp":
       "OTP validated successfully. Redirecting to the {{destination}}.",
+    "auth.success.google":
+      "Signed in with Google. Redirecting to the {{destination}}.",
     "auth.success.otpSent":
       "A temporary OTP was generated. Enter the code to continue.",
     "auth.success.otpSentWithPreview":
@@ -364,6 +374,8 @@ const translations: Record<Locale, Record<string, string>> = {
       "The authentication service returned an invalid response.",
     "auth.errors.userAlreadyExists":
       "An account with that email or username already exists.",
+    "auth.errors.googleLogin":
+      "We could not complete Google sign in. Please try again.",
     "auth.errors.generic":
       "Authentication could not be completed. Please try again in a few seconds.",
     "layout.navigation": "Navigation",

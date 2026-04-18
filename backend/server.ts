@@ -1023,6 +1023,7 @@ Bun.serve({
 
         const body = (await request.json()) as Record<string, unknown>;
         const token = getRequiredString(body.token);
+        const requestedRole = isUserRole(body.role) ? body.role : "residente";
 
         if (!token || !googleClient) {
           return jsonResponse(
@@ -1072,7 +1073,7 @@ Bun.serve({
               payload.name || "Usuario Google",
               normalizeIdentifier(payload.email),
               googleUsername,
-              "residente",
+              requestedRole,
               "GOOGLE_LOGIN",
             ]
           );
@@ -1082,7 +1083,7 @@ Bun.serve({
             name: payload.name || "Usuario Google",
             email: normalizeIdentifier(payload.email),
             username: googleUsername,
-            role: "residente",
+            role: requestedRole,
           };
         }
 

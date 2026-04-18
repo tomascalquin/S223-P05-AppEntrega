@@ -67,6 +67,13 @@ type VerifyOtpApiResponse = {
   user?: Partial<AuthUser>;
 };
 
+type GoogleAuthApiResponse = {
+  message?: string;
+  error?: string;
+  token?: string;
+  user?: Partial<AuthUser>;
+};
+
 type ProfileApiResponse = {
   message?: string;
   error?: string;
@@ -320,6 +327,44 @@ const verifyOtpWithApi = async (
   return buildSessionFromApi(responseData ?? {});
 };
 
+const authenticateWithGoogleApi = async (
+  googleCredential: string,
+  role: Role
+): Promise<AuthSession> => {
+  let response: Response;
+
+  try {
+    response = await fetch(`${AUTH_API_URL}/google`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        token: googleCredential,
+        role,
+      }),
+    });
+  } catch {
+    throw new AuthError(
+      "NETWORK_ERROR",
+      translateAuth("auth.errors.networkLogin")
+    );
+  }
+
+  const responseData = await parseJsonResponse<GoogleAuthApiResponse>(response);
+
+  if (!response.ok) {
+    throw new AuthError(
+      response.status === 401 ? "INVALID_CREDENTIALS" : "NETWORK_ERROR",
+      responseData?.error ??
+        responseData?.message ??
+        translateAuth("auth.errors.googleLogin")
+    );
+  }
+
+  return buildSessionFromApi(responseData ?? {});
+};
+
 const isStoredSession = (value: unknown): value is AuthSession => {
   if (!value || typeof value !== "object") {
     return false;
@@ -385,6 +430,13 @@ export const verifyOtp = async (
 
 export const registerUser = async (data: RegisterData): Promise<AuthSession> => {
   return registerWithApi(data);
+};
+
+export const authenticateWithGoogle = async (
+  googleCredential: string,
+  role: Role
+): Promise<AuthSession> => {
+  return authenticateWithGoogleApi(googleCredential, role);
 };
 
 export const validateStoredSession = async (token: string): Promise<AuthUser> => {

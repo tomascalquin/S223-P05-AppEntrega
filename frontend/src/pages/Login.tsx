@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import LanguageSwitcher from "../components/LanguageSwitcher";
@@ -58,9 +58,11 @@ const initialFieldErrors: AuthFieldErrors = {
 const Login = () => {
   const navigate = useNavigate();
   const redirectTimeoutRef = useRef<number | null>(null);
+  const googleButtonContainerRef = useRef<HTMLDivElement | null>(null);
 
   const {
     login,
+    loginWithGoogle,
     verifyOtp,
     register,
     authError,
@@ -75,8 +77,10 @@ const Login = () => {
   const [fieldErrors, setFieldErrors] =
     useState<AuthFieldErrors>(initialFieldErrors);
   const [successMessage, setSuccessMessage] = useState("");
+  const [isGoogleReady, setIsGoogleReady] = useState(false);
   const [pendingOtpChallenge, setPendingOtpChallenge] =
     useState<PendingOtpChallenge | null>(null);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() ?? "";
 
   // # Las tarjetas de rol se reconstruyen con `t(...)` para actualizarse al cambiar idioma sin duplicar JSX.
   const roleOptions = useMemo(
@@ -170,6 +174,25 @@ const Login = () => {
     return Object.values(errors).some((error) => error !== "");
   };
 
+  const handleGoogleCredential = useEffectEvent(async (credential: string) => {
+    resetFeedback();
+
+    try {
+      const authenticatedUser = await loginWithGoogle(
+        credential,
+        formData.role
+      );
+      handleSuccessfulAuth(
+        authenticatedUser.role,
+        t("auth.success.google", {
+          destination: t(`auth.destination.${authenticatedUser.role}`),
+        })
+      );
+    } catch {
+      setSuccessMessage("");
+    }
+  });
+
   useEffect(() => {
     return () => {
       if (redirectTimeoutRef.current !== null) {
@@ -177,6 +200,78 @@ const Login = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      !googleClientId ||
+      !googleButtonContainerRef.current ||
+      authStep === "otp"
+    ) {
+      return;
+    }
+
+    setIsGoogleReady(false);
+    let isCancelled = false;
+    const scriptId = "google-identity-services";
+
+    const renderGoogleButton = () => {
+      if (
+        isCancelled ||
+        !googleButtonContainerRef.current ||
+        !window.google?.accounts.id
+      ) {
+        return;
+      }
+
+      // # Limpiamos el contenedor antes de renderizar para evitar botones duplicados
+      // # cuando React reejecuta efectos en desarrollo o cambia el modo del formulario.
+      googleButtonContainerRef.current.innerHTML = "";
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: ({ credential }) => {
+          if (!credential) {
+            return;
+          }
+
+          void handleGoogleCredential(credential);
+        },
+        cancel_on_tap_outside: true,
+      });
+
+      window.google.accounts.id.renderButton(googleButtonContainerRef.current, {
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "pill",
+        width: 320,
+        logo_alignment: "left",
+      });
+      setIsGoogleReady(true);
+    };
+
+    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
+
+    if (existingScript) {
+      renderGoogleButton();
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      renderGoogleButton();
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [authStep, googleClientId, handleGoogleCredential, mode, formData.role]);
 
   const resetFeedback = () => {
     setSuccessMessage("");
@@ -706,9 +801,31 @@ const Login = () => {
                       {
                         role: t(`common.role.${formData.role}`),
                       }
-                    )
+                )
               )}
             </button>
+
+            {authStep === "credentials" && googleClientId && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-white/35">
+                  <span className="h-px flex-1 bg-white/10" />
+                  <span>{t("auth.googleDivider")}</span>
+                  <span className="h-px flex-1 bg-white/10" />
+                </div>
+
+                {/* # Google renderiza su botón dentro de este contenedor para mantener
+                    # la experiencia oficial sin replicar estilos ni lógica sensible. */}
+                <div className="flex min-h-[44px] justify-center">
+                  <div ref={googleButtonContainerRef} />
+                </div>
+
+                {!isGoogleReady && (
+                  <p className="text-center text-xs text-white/45">
+                    {t("auth.googleLoading")}
+                  </p>
+                )}
+              </div>
+            )}
           </form>
         </section>
       </div>
