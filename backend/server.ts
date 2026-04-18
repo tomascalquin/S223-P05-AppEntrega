@@ -22,7 +22,12 @@ type UserRow = RowDataPacket & {
   id: number;
   name: string;
   email: string;
+  username: string;
+  role: "conserje" | "residente";
   password: string;
+  otp_code_hash: string | null;
+  otp_expires_at: string | null;
+  otp_session_id: string | null;
   created_at: string;
 };
 
@@ -30,7 +35,11 @@ type AuthTokenPayload = {
   id: number;
   email: string;
   name: string;
+  username: string;
+  role: "conserje" | "residente";
 };
+
+type UserRole = AuthTokenPayload["role"];
 
 // # Estos headers permiten que frontend y HTMLs de prueba llamen al backend
 // # incluso cuando están corriendo en otro puerto.
@@ -49,6 +58,9 @@ const allowedStatuses = new Set<PackageStatus>([
 const PORT = Number(process.env.PORT || 3001);
 const JWT_SECRET = process.env.JWT_SECRET?.trim() ?? "";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
+const OTP_LENGTH = 6;
+const OTP_EXPIRATION_MINUTES = 5;
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 // # Solo creamos el cliente de Google si realmente existe el Client ID.
 // # Así el backend puede seguir funcionando para paquetes aunque SSO no esté configurado.
@@ -86,6 +98,14 @@ const getOptionalString = (value: unknown) => {
   return normalizedValue ? normalizedValue : null;
 };
 
+const isUserRole = (value: unknown): value is UserRole => {
+  return value === "conserje" || value === "residente";
+};
+
+const normalizeIdentifier = (value: string) => {
+  return value.trim().toLowerCase();
+};
+
 const parsePackageId = (pathname: string) => {
   const id = Number(pathname.split("/").pop());
   return Number.isInteger(id) && id > 0 ? id : null;
@@ -119,6 +139,54 @@ const generateToken = (user: AuthTokenPayload) => {
   return jwt.sign(user, JWT_SECRET, {
     expiresIn: "2h",
   });
+};
+
+const buildSafeUser = (user: Pick<UserRow, "id" | "name" | "email" | "username" | "role">) => {
+  // # Normalizamos los tipos antes de enviarlos al frontend para que no dependa
+  // # del formato interno de MySQL.
+  return {
+    id: String(user.id),
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+  };
+};
+
+const createOtpCode = () => {
+  // # `Math.random` es suficiente para una demo/local, pero devolvemos un
+  // # string fijo en longitud para evitar OTPs de 5 dígitos por ceros iniciales.
+  const maxValue = 10 ** OTP_LENGTH;
+  return Math.floor(Math.random() * maxValue)
+    .toString()
+    .padStart(OTP_LENGTH, "0");
+};
+
+const createOtpExpirationDate = () => {
+  return new Date(Date.now() + OTP_EXPIRATION_MINUTES * 60 * 1000);
+};
+
+const buildOtpChallengeResponse = (otpSessionId: string, otpExpiresAt: Date, otpCode: string) => {
+  return {
+    requiresOtp: true,
+    otpSessionId,
+    otpExpiresAt: otpExpiresAt.toISOString(),
+    // # En producción este campo se oculta; en desarrollo lo exponemos para
+    // # poder probar el flujo completo sin integrar correo o SMS.
+    otpCode: IS_PRODUCTION ? undefined : otpCode,
+  };
+};
+
+const getUserByIdentifier = async (identifier: string, role: UserRole) => {
+  const normalizedIdentifier = normalizeIdentifier(identifier);
+  const [rows] = await db.query<UserRow[]>(
+    `SELECT * FROM users
+     WHERE role = ? AND (LOWER(email) = ? OR LOWER(username) = ?)
+     LIMIT 1`,
+    [role, normalizedIdentifier, normalizedIdentifier]
+  );
+
+  return rows[0] ?? null;
 };
 
 const verifyAuthHeader = (request: Request) => {
@@ -204,10 +272,41 @@ async function createTables() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL UNIQUE,
+        username VARCHAR(255) NOT NULL UNIQUE,
+        role ENUM('conserje', 'residente') NOT NULL DEFAULT 'residente',
         password VARCHAR(255) NOT NULL,
+        otp_code_hash VARCHAR(255) NULL,
+        otp_expires_at DATETIME NULL,
+        otp_session_id VARCHAR(255) NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    const ensureUserColumn = async (columnName: string, definition: string) => {
+      const [rows] = await db.query<RowDataPacket[]>(
+        "SHOW COLUMNS FROM users LIKE ?",
+        [columnName]
+      );
+
+      if (rows.length === 0) {
+        await db.query(`ALTER TABLE users ADD COLUMN ${definition}`);
+      }
+    };
+
+    await ensureUserColumn(
+      "username",
+      "username VARCHAR(255) NOT NULL DEFAULT ''"
+    );
+    await ensureUserColumn(
+      "role",
+      "role ENUM('conserje', 'residente') NOT NULL DEFAULT 'residente'"
+    );
+    await ensureUserColumn("otp_code_hash", "otp_code_hash VARCHAR(255) NULL");
+    await ensureUserColumn("otp_expires_at", "otp_expires_at DATETIME NULL");
+    await ensureUserColumn("otp_session_id", "otp_session_id VARCHAR(255) NULL");
+    await db.query(
+      "UPDATE users SET username = CONCAT('user_', id) WHERE username = '' OR username IS NULL"
+    );
 
     console.log("Tabla 'users' creada o ya existe.");
   } catch (error) {
@@ -572,25 +671,27 @@ Bun.serve({
     if (method === "POST" && url.pathname === "/api/auth/register") {
       try {
         const body = (await request.json()) as Record<string, unknown>;
+        const role = body.role;
         const name = getRequiredString(body.name);
         const email = getRequiredString(body.email);
+        const username = getRequiredString(body.username);
         const password = getRequiredString(body.password);
 
-        if (!name || !email || !password) {
+        if (!isUserRole(role) || !name || !email || !username || !password) {
           return jsonResponse(
-            { error: "name, email y password son requeridos" },
+            { error: "role, name, email, username y password son requeridos" },
             { status: 400 }
           );
         }
 
         const [existingUsers] = await db.query<UserRow[]>(
-          "SELECT * FROM users WHERE email = ?",
-          [email]
+          "SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ?",
+          [normalizeIdentifier(email), normalizeIdentifier(username)]
         );
 
         if (existingUsers.length > 0) {
           return jsonResponse(
-            { error: "Ya existe un usuario con ese correo" },
+            { error: "Ya existe un usuario con ese correo o nombre de usuario" },
             { status: 409 }
           );
         }
@@ -598,14 +699,31 @@ Bun.serve({
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const [result] = await db.query<ResultSetHeader>(
-          "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-          [name, email, hashedPassword]
+          "INSERT INTO users (name, email, username, role, password) VALUES (?, ?, ?, ?, ?)",
+          [
+            name,
+            normalizeIdentifier(email),
+            normalizeIdentifier(username),
+            role,
+            hashedPassword,
+          ]
         );
+
+        const registeredUser = {
+          id: result.insertId,
+          name,
+          email: normalizeIdentifier(email),
+          username: normalizeIdentifier(username),
+          role,
+        };
+
+        const token = generateToken(registeredUser);
 
         return jsonResponse(
           {
             message: "Usuario registrado exitosamente",
-            id: result.insertId,
+            token,
+            user: buildSafeUser(registeredUser),
           },
           { status: 201 }
         );
@@ -623,57 +741,151 @@ Bun.serve({
     if (method === "POST" && url.pathname === "/api/auth/login") {
       try {
         const body = (await request.json()) as Record<string, unknown>;
-        const email = getRequiredString(body.email);
+        const role = body.role;
+        const identifier = getRequiredString(body.identifier);
         const password = getRequiredString(body.password);
 
-        if (!email || !password) {
+        if (!isUserRole(role) || !identifier || !password) {
           return jsonResponse(
-            { error: "email y password son requeridos" },
+            { error: "role, identifier y password son requeridos" },
+            { status: 400 }
+          );
+        }
+
+        const user = await getUserByIdentifier(identifier, role);
+
+        if (!user) {
+          return jsonResponse(
+            { error: "Credenciales invalidas" },
+            { status: 401 }
+          );
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+          return jsonResponse(
+            { error: "Credenciales invalidas" },
+            { status: 401 }
+          );
+        }
+
+        const otpCode = createOtpCode();
+        const otpSessionId = crypto.randomUUID();
+        const otpExpiresAt = createOtpExpirationDate();
+        const otpCodeHash = await bcrypt.hash(otpCode, 10);
+
+        // # Guardamos la sesion OTP en el usuario para que el segundo paso
+        // # confirme el codigo correcto y ademas invalide codigos anteriores.
+        await db.query(
+          `UPDATE users
+           SET otp_code_hash = ?, otp_expires_at = ?, otp_session_id = ?
+           WHERE id = ?`,
+          [otpCodeHash, otpExpiresAt, otpSessionId, user.id]
+        );
+
+        console.log(
+          `[OTP] Usuario ${user.email} debe validar el codigo ${otpCode} antes de ${otpExpiresAt.toISOString()}`
+        );
+
+        return jsonResponse({
+          message: "Credenciales correctas. Falta validar el OTP.",
+          ...buildOtpChallengeResponse(otpSessionId, otpExpiresAt, otpCode),
+        });
+      } catch (error) {
+        return jsonResponse(
+          {
+            message: "Error iniciando sesion",
+            error: String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "POST" && url.pathname === "/api/auth/verify-otp") {
+      try {
+        const body = (await request.json()) as Record<string, unknown>;
+        const otpSessionId = getRequiredString(body.otpSessionId);
+        const otpCode = getRequiredString(body.otpCode);
+
+        if (!otpSessionId || !otpCode) {
+          return jsonResponse(
+            { error: "otpSessionId y otpCode son requeridos" },
             { status: 400 }
           );
         }
 
         const [rows] = await db.query<UserRow[]>(
-          "SELECT * FROM users WHERE email = ?",
-          [email]
+          "SELECT * FROM users WHERE otp_session_id = ? LIMIT 1",
+          [otpSessionId]
         );
 
         if (rows.length === 0) {
           return jsonResponse(
-            { error: "Credenciales inválidas" },
+            { error: "La sesion OTP no existe o ya fue usada" },
             { status: 401 }
           );
         }
 
         const user = rows[0];
-        const isPasswordValid = await bcrypt.compare(password, user.password);
 
-        if (!isPasswordValid) {
+        if (!user.otp_code_hash || !user.otp_expires_at) {
           return jsonResponse(
-            { error: "Credenciales inválidas" },
+            { error: "No existe un OTP pendiente para este usuario" },
             { status: 401 }
           );
         }
+
+        const otpExpirationTime = new Date(user.otp_expires_at).getTime();
+
+        if (Number.isNaN(otpExpirationTime) || otpExpirationTime < Date.now()) {
+          await db.query(
+            `UPDATE users
+             SET otp_code_hash = NULL, otp_expires_at = NULL, otp_session_id = NULL
+             WHERE id = ?`,
+            [user.id]
+          );
+
+          return jsonResponse(
+            { error: "El OTP expiro. Debes iniciar sesion nuevamente." },
+            { status: 401 }
+          );
+        }
+
+        const isOtpValid = await bcrypt.compare(otpCode, user.otp_code_hash);
+
+        if (!isOtpValid) {
+          return jsonResponse(
+            { error: "El codigo OTP ingresado no es valido" },
+            { status: 401 }
+          );
+        }
+
+        await db.query(
+          `UPDATE users
+           SET otp_code_hash = NULL, otp_expires_at = NULL, otp_session_id = NULL
+           WHERE id = ?`,
+          [user.id]
+        );
 
         const token = generateToken({
           id: user.id,
           email: user.email,
           name: user.name,
+          username: user.username,
+          role: user.role,
         });
 
         return jsonResponse({
-          message: "Inicio de sesión exitoso",
+          message: "OTP validado correctamente. Inicio de sesion completado.",
           token,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-          },
+          user: buildSafeUser(user),
         });
       } catch (error) {
         return jsonResponse(
           {
-            message: "Error iniciando sesión",
+            message: "Error validando OTP",
             error: String(error),
           },
           { status: 500 }
@@ -721,17 +933,32 @@ Bun.serve({
             id: rows[0].id,
             name: rows[0].name,
             email: rows[0].email,
+            username: rows[0].username,
+            role: rows[0].role,
           };
         } else {
+          const googleUsernameBase = normalizeIdentifier(
+            payload.email.split("@")[0] ?? payload.email
+          );
+          const googleUsername = `${googleUsernameBase}_${crypto.randomUUID().slice(0, 8)}`;
+
           const [result] = await db.query<ResultSetHeader>(
-            "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-            [payload.name || "Usuario Google", payload.email, "GOOGLE_LOGIN"]
+            "INSERT INTO users (name, email, username, role, password) VALUES (?, ?, ?, ?, ?)",
+            [
+              payload.name || "Usuario Google",
+              normalizeIdentifier(payload.email),
+              googleUsername,
+              "residente",
+              "GOOGLE_LOGIN",
+            ]
           );
 
           user = {
             id: result.insertId,
             name: payload.name || "Usuario Google",
-            email: payload.email,
+            email: normalizeIdentifier(payload.email),
+            username: googleUsername,
+            role: "residente",
           };
         }
 
@@ -740,7 +967,7 @@ Bun.serve({
         return jsonResponse({
           message: "Inicio de sesión con Google exitoso",
           token: appToken,
-          user,
+          user: buildSafeUser(user),
         });
       } catch (error) {
         return jsonResponse(

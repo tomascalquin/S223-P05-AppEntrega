@@ -6,8 +6,11 @@ import {
   registerUser,
   type AuthUser,
   type LoginCredentials,
+  type LoginResult,
+  type PendingOtpChallenge,
   type RegisterData,
   type Role,
+  verifyOtp as verifyOtpCode,
 } from "../services/auth";
 
 const AUTH_STORAGE_KEY = "encombox.auth.session";
@@ -16,7 +19,11 @@ interface AuthContextType {
   user: AuthUser | null;
   authError: string;
   isAuthenticating: boolean;
-  login: (credentials: LoginCredentials) => Promise<AuthUser>;
+  login: (credentials: LoginCredentials) => Promise<LoginResult>;
+  verifyOtp: (
+    challenge: PendingOtpChallenge,
+    otpCode: string
+  ) => Promise<AuthUser>;
   register: (data: RegisterData) => Promise<AuthUser>;
   logout: () => void;
   clearAuthError: () => void;
@@ -76,7 +83,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAuthError("");
 
     try {
-      const authenticatedUser = await authenticateUser(credentials);
+      const loginResult = await authenticateUser(credentials);
+
+      if (loginResult.status === "authenticated") {
+        setUser(loginResult.user);
+      }
+
+      return loginResult;
+    } catch (error) {
+      setAuthError(getAuthErrorMessage(error));
+      throw error;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const verifyOtp = async (
+    challenge: PendingOtpChallenge,
+    otpCode: string
+  ) => {
+    setIsAuthenticating(true);
+    setAuthError("");
+
+    try {
+      const authenticatedUser = await verifyOtpCode(challenge, otpCode);
       setUser(authenticatedUser);
       return authenticatedUser;
     } catch (error) {
@@ -119,6 +149,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         authError,
         isAuthenticating,
         login,
+        verifyOtp,
         register,
         logout,
         clearAuthError,
