@@ -28,6 +28,7 @@ services:
       DB_NAME: appdb
       DB_USER: root
       DB_PASSWORD: clave123
+      JWT_SECRET: recepbox_dev_secret
 
   frontend:
     build:
@@ -42,6 +43,8 @@ services:
       - /app/node_modules
     depends_on:
       - backend
+    environment:
+      VITE_AUTH_API_URL: http://localhost:3001/api/auth
 
 volumes:
   mysql_data:

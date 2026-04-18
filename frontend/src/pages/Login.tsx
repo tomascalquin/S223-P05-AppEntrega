@@ -4,9 +4,14 @@ import { useNavigate } from "react-router-dom";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
-import { getHomePathForRole, type Role } from "../services/auth";
+import {
+  getHomePathForRole,
+  type PendingOtpChallenge,
+  type Role,
+} from "../services/auth";
 
 type AuthMode = "login" | "register";
+type AuthStep = "credentials" | "otp";
 
 type AuthFormState = {
   role: Role;
@@ -16,6 +21,7 @@ type AuthFormState = {
   identifier: string;
   password: string;
   confirmPassword: string;
+  otpCode: string;
 };
 
 type AuthFieldErrors = {
@@ -25,6 +31,7 @@ type AuthFieldErrors = {
   identifier: string;
   password: string;
   confirmPassword: string;
+  otpCode: string;
 };
 
 const initialFormState: AuthFormState = {
@@ -35,6 +42,7 @@ const initialFormState: AuthFormState = {
   identifier: "",
   password: "",
   confirmPassword: "",
+  otpCode: "",
 };
 
 const initialFieldErrors: AuthFieldErrors = {
@@ -44,21 +52,31 @@ const initialFieldErrors: AuthFieldErrors = {
   identifier: "",
   password: "",
   confirmPassword: "",
+  otpCode: "",
 };
 
 const Login = () => {
   const navigate = useNavigate();
   const redirectTimeoutRef = useRef<number | null>(null);
 
-  const { login, register, authError, isAuthenticating, clearAuthError } =
-    useAuth();
+  const {
+    login,
+    verifyOtp,
+    register,
+    authError,
+    isAuthenticating,
+    clearAuthError,
+  } = useAuth();
   const { t } = useI18n();
 
   const [mode, setMode] = useState<AuthMode>("login");
+  const [authStep, setAuthStep] = useState<AuthStep>("credentials");
   const [formData, setFormData] = useState<AuthFormState>(initialFormState);
   const [fieldErrors, setFieldErrors] =
     useState<AuthFieldErrors>(initialFieldErrors);
   const [successMessage, setSuccessMessage] = useState("");
+  const [pendingOtpChallenge, setPendingOtpChallenge] =
+    useState<PendingOtpChallenge | null>(null);
 
   // # Las tarjetas de rol se reconstruyen con `t(...)` para actualizarse al cambiar idioma sin duplicar JSX.
   const roleOptions = useMemo(
@@ -138,6 +156,16 @@ const Login = () => {
     return nextErrors;
   };
 
+  const validateOtpForm = (values: AuthFormState) => {
+    const nextErrors: AuthFieldErrors = { ...initialFieldErrors };
+
+    if (!/^\d{6}$/.test(values.otpCode.trim())) {
+      nextErrors.otpCode = t("auth.validation.otpCode.invalid");
+    }
+
+    return nextErrors;
+  };
+
   const hasValidationErrors = (errors: AuthFieldErrors) => {
     return Object.values(errors).some((error) => error !== "");
   };
@@ -161,7 +189,13 @@ const Login = () => {
   const handleModeChange = (nextMode: AuthMode) => {
     // # Al cambiar entre login y registro limpiamos errores previos para no mezclar mensajes de distintos flujos.
     setMode(nextMode);
+    setAuthStep("credentials");
+    setPendingOtpChallenge(null);
     setFieldErrors(initialFieldErrors);
+    setFormData((current) => ({
+      ...current,
+      otpCode: "",
+    }));
     resetFeedback();
   };
 
@@ -169,8 +203,11 @@ const Login = () => {
     setFormData((current) => ({
       ...current,
       role,
+      otpCode: "",
     }));
 
+    setAuthStep("credentials");
+    setPendingOtpChallenge(null);
     resetFeedback();
   };
 
@@ -186,6 +223,13 @@ const Login = () => {
       ...current,
       [name]: "",
     }));
+
+    if (authStep === "otp" && name !== "otpCode") {
+      // # Si el usuario vuelve a editar credenciales, descartamos el OTP pendiente
+      // # porque ya no representa exactamente el mismo intento de login.
+      setAuthStep("credentials");
+      setPendingOtpChallenge(null);
+    }
 
     resetFeedback();
   };
@@ -209,12 +253,15 @@ const Login = () => {
       identifier: formData.identifier.trim(),
       password: formData.password,
       confirmPassword: formData.confirmPassword,
+      otpCode: formData.otpCode.trim(),
     };
 
     const validationErrors =
-      mode === "login"
-        ? validateLoginForm(normalizedFormData)
-        : validateRegisterForm(normalizedFormData);
+      authStep === "otp"
+        ? validateOtpForm(normalizedFormData)
+        : mode === "login"
+          ? validateLoginForm(normalizedFormData)
+          : validateRegisterForm(normalizedFormData);
 
     setFieldErrors(validationErrors);
     resetFeedback();
@@ -224,18 +271,57 @@ const Login = () => {
     }
 
     try {
+      if (authStep === "otp") {
+        if (!pendingOtpChallenge) {
+          setAuthStep("credentials");
+          return;
+        }
+
+        const authenticatedUser = await verifyOtp(
+          pendingOtpChallenge,
+          normalizedFormData.otpCode
+        );
+
+        handleSuccessfulAuth(
+          authenticatedUser.role,
+          t("auth.success.otp", {
+            destination: t(`auth.destination.${authenticatedUser.role}`),
+          })
+        );
+
+        return;
+      }
+
       if (mode === "login") {
-        const authenticatedUser = await login({
+        const loginResult = await login({
           role: normalizedFormData.role,
           identifier: normalizedFormData.identifier,
           password: normalizedFormData.password,
         });
 
-        handleSuccessfulAuth(
-          authenticatedUser.role,
-          t("auth.success.login", {
-            destination: t(`auth.destination.${authenticatedUser.role}`),
-          })
+        if (loginResult.status === "authenticated") {
+          handleSuccessfulAuth(
+            loginResult.user.role,
+            t("auth.success.login", {
+              destination: t(`auth.destination.${loginResult.user.role}`),
+            })
+          );
+          return;
+        }
+
+        // # El backend ya confirmó usuario + contraseña; ahora pedimos el segundo factor.
+        setAuthStep("otp");
+        setPendingOtpChallenge(loginResult.challenge);
+        setFormData((current) => ({
+          ...current,
+          otpCode: "",
+        }));
+        setSuccessMessage(
+          loginResult.challenge.otpCode
+            ? t("auth.success.otpSentWithPreview", {
+                code: loginResult.challenge.otpCode,
+              })
+            : t("auth.success.otpSent")
         );
 
         return;
@@ -300,48 +386,54 @@ const Login = () => {
             </div>
 
             <h1 className="mt-5 text-2xl font-semibold text-white sm:text-3xl">
-              {t(`auth.title.${mode}`)}
+              {authStep === "otp" ? t("auth.title.otp") : t(`auth.title.${mode}`)}
             </h1>
             <p className="mt-3 text-sm leading-6 text-white/70">
-              {t(`auth.description.${mode}`)}
+              {authStep === "otp"
+                ? t("auth.description.otp", {
+                    identifier: formData.identifier || formData.email,
+                  })
+                : t(`auth.description.${mode}`)}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             {/* # El mismo formulario soporta login y registro; solo alternamos los campos que cambian entre ambos modos. */}
-            <div>
-              <p className="text-sm font-medium text-white/85">
-                {t("auth.selectRole")}
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {roleOptions.map((option) => {
-                  const isSelected = formData.role === option.value;
+            {authStep === "credentials" && (
+              <div>
+                <p className="text-sm font-medium text-white/85">
+                  {t("auth.selectRole")}
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {roleOptions.map((option) => {
+                    const isSelected = formData.role === option.value;
 
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleRoleChange(option.value)}
-                      disabled={isAuthenticating}
-                      className={`rounded-2xl border px-4 py-4 text-left transition ${
-                        isSelected
-                          ? "border-emerald-400 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(52,211,153,0.2)]"
-                          : "border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/8"
-                      }`}
-                    >
-                      <p className="text-sm font-semibold text-white">
-                        {option.label}
-                      </p>
-                      <p className="mt-1 text-sm leading-5 text-white/65">
-                        {option.description}
-                      </p>
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleRoleChange(option.value)}
+                        disabled={isAuthenticating}
+                        className={`rounded-2xl border px-4 py-4 text-left transition ${
+                          isSelected
+                            ? "border-emerald-400 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(52,211,153,0.2)]"
+                            : "border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/8"
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-white">
+                          {option.label}
+                        </p>
+                        <p className="mt-1 text-sm leading-5 text-white/65">
+                          {option.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
-            {mode === "register" && (
+            {authStep === "credentials" && mode === "register" && (
               <>
                 <div>
                   <label htmlFor="name" className="text-sm font-medium text-white/85">
@@ -425,7 +517,7 @@ const Login = () => {
               </>
             )}
 
-            {mode === "login" && (
+            {authStep === "credentials" && mode === "login" && (
               <div>
                 <label
                   htmlFor="identifier"
@@ -457,32 +549,82 @@ const Login = () => {
               </div>
             )}
 
-            <div>
-              <label htmlFor="password" className="text-sm font-medium text-white/85">
-                {t("auth.field.password")}
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                value={formData.password}
-                onChange={handleChange}
-                disabled={isAuthenticating}
-                placeholder={t(`auth.placeholder.password.${mode}`)}
-                aria-invalid={fieldErrors.password !== ""}
-                className={`mt-2 w-full rounded-2xl border bg-white/5 px-4 py-3.5 text-white outline-none transition placeholder:text-white/35 ${
-                  fieldErrors.password
-                    ? "border-red-400/80 focus:border-red-300"
-                    : "border-white/10 focus:border-emerald-400"
-                }`}
-              />
-              {fieldErrors.password && (
-                <p className="mt-2 text-sm text-red-300">{fieldErrors.password}</p>
-              )}
-            </div>
+            {authStep === "credentials" && (
+              <div>
+                <label htmlFor="password" className="text-sm font-medium text-white/85">
+                  {t("auth.field.password")}
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  value={formData.password}
+                  onChange={handleChange}
+                  disabled={isAuthenticating}
+                  placeholder={t(`auth.placeholder.password.${mode}`)}
+                  aria-invalid={fieldErrors.password !== ""}
+                  className={`mt-2 w-full rounded-2xl border bg-white/5 px-4 py-3.5 text-white outline-none transition placeholder:text-white/35 ${
+                    fieldErrors.password
+                      ? "border-red-400/80 focus:border-red-300"
+                      : "border-white/10 focus:border-emerald-400"
+                  }`}
+                />
+                {fieldErrors.password && (
+                  <p className="mt-2 text-sm text-red-300">{fieldErrors.password}</p>
+                )}
+              </div>
+            )}
 
-            {mode === "register" && (
+            {authStep === "otp" && (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm text-white/70">
+                  {t("auth.otpSummary", {
+                    role: t(`common.roleLabel.${formData.role}`),
+                    identifier: formData.identifier,
+                  })}
+                </p>
+
+                <label
+                  htmlFor="otpCode"
+                  className="mt-4 block text-sm font-medium text-white/85"
+                >
+                  {t("auth.field.otpCode")}
+                </label>
+                <input
+                  id="otpCode"
+                  name="otpCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={formData.otpCode}
+                  onChange={handleChange}
+                  disabled={isAuthenticating}
+                  placeholder={t("auth.placeholder.otpCode")}
+                  aria-invalid={fieldErrors.otpCode !== ""}
+                  className={`mt-2 w-full rounded-2xl border bg-white/5 px-4 py-3.5 text-white outline-none transition placeholder:text-white/35 ${
+                    fieldErrors.otpCode
+                      ? "border-red-400/80 focus:border-red-300"
+                      : "border-white/10 focus:border-emerald-400"
+                  }`}
+                />
+                {fieldErrors.otpCode && (
+                  <p className="mt-2 text-sm text-red-300">{fieldErrors.otpCode}</p>
+                )}
+
+                {pendingOtpChallenge && (
+                  <p className="mt-3 text-xs text-white/55">
+                    {t("auth.otpExpiresAt", {
+                      expiresAt: new Date(
+                        pendingOtpChallenge.otpExpiresAt
+                      ).toLocaleTimeString(),
+                    })}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {authStep === "credentials" && mode === "register" && (
               <div>
                 <label
                   htmlFor="confirmPassword"
@@ -519,9 +661,11 @@ const Login = () => {
               {isAuthenticating && (
                 <div className="flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-200/30 border-t-emerald-200" />
-                  {t(`auth.loading${mode === "login" ? "Login" : "Register"}`, {
-                    role: t(`common.role.${formData.role}`),
-                  })}
+                  {authStep === "otp"
+                    ? t("auth.loadingOtp")
+                    : t(`auth.loading${mode === "login" ? "Login" : "Register"}`, {
+                        role: t(`common.role.${formData.role}`),
+                      })}
                 </div>
               )}
 
@@ -547,18 +691,22 @@ const Login = () => {
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950" />
                   {t(
-                    mode === "login"
-                      ? "auth.status.loggingIn"
-                      : "auth.status.registering"
+                    authStep === "otp"
+                      ? "auth.status.verifyingOtp"
+                      : mode === "login"
+                        ? "auth.status.loggingIn"
+                        : "auth.status.registering"
                   )}
                 </>
               ) : (
-                t(
-                  mode === "login" ? "auth.loginButton" : "auth.registerButton",
-                  {
-                    role: t(`common.role.${formData.role}`),
-                  }
-                )
+                authStep === "otp"
+                  ? t("auth.verifyOtpButton")
+                  : t(
+                      mode === "login" ? "auth.loginButton" : "auth.registerButton",
+                      {
+                        role: t(`common.role.${formData.role}`),
+                      }
+                    )
               )}
             </button>
           </form>

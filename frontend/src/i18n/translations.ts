@@ -36,21 +36,32 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.mode.register": "Registrarse",
     "auth.title.login": "Iniciar sesión",
     "auth.title.register": "Crear cuenta",
+    "auth.title.otp": "Verificar código OTP",
     "auth.description.login":
       "Ingresa con tu email o usuario y tu contraseña.",
     "auth.description.register":
       "Completa tus datos para registrarte y entrar de inmediato.",
+    "auth.description.otp":
+      "Ingresa el código temporal enviado para completar el acceso de {{identifier}}.",
     "auth.selectRole": "Entrar como",
     "auth.loginButton": "Entrar como {{role}}",
     "auth.registerButton": "Registrarme como {{role}}",
+    "auth.verifyOtpButton": "Validar código OTP",
     "auth.loadingLogin":
       "Validando acceso de {{role}} y preparando tu dashboard...",
     "auth.loadingRegister":
       "Creando cuenta de {{role}} y preparando tu dashboard...",
+    "auth.loadingOtp": "Validando el segundo factor de autenticación...",
     "auth.success.login":
       "Acceso concedido. Redirigiendo al {{destination}}.",
     "auth.success.register":
       "Cuenta creada correctamente. Redirigiendo al {{destination}}.",
+    "auth.success.otp":
+      "OTP validado correctamente. Redirigiendo al {{destination}}.",
+    "auth.success.otpSent":
+      "Se generó un OTP temporal. Ingresa el código para continuar.",
+    "auth.success.otpSentWithPreview":
+      "Se generó un OTP temporal. Para pruebas locales, usa el código {{code}}.",
     "auth.roleDescription.residente":
       "Revisa el estado y retiro de tus encomiendas.",
     "auth.roleDescription.conserje":
@@ -61,6 +72,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.field.identifier": "Email o usuario",
     "auth.field.password": "Contraseña",
     "auth.field.confirmPassword": "Confirmar contraseña",
+    "auth.field.otpCode": "Código OTP",
     "auth.placeholder.name": "Ej: Martina Soto",
     "auth.placeholder.email": "Ej: usuario@encombox.cl",
     "auth.placeholder.username": "Crea tu usuario",
@@ -71,6 +83,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.placeholder.password.login": "Ingresa tu contraseña",
     "auth.placeholder.password.register": "Crea una contraseña segura",
     "auth.placeholder.confirmPassword": "Repite tu contraseña",
+    "auth.placeholder.otpCode": "Ingresa los 6 dígitos",
     "auth.validation.identifier.required":
       "Ingresa tu email institucional o tu usuario.",
     "auth.validation.identifier.invalidEmail":
@@ -91,16 +104,28 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.validation.confirmPassword.required": "Confirma tu contraseña.",
     "auth.validation.confirmPassword.match":
       "Las contraseñas no coinciden.",
+    "auth.validation.otpCode.invalid":
+      "Ingresa un código OTP de 6 dígitos.",
     "auth.status.loggingIn": "Ingresando...",
     "auth.status.registering": "Registrando...",
+    "auth.status.verifyingOtp": "Validando OTP...",
     "auth.destination.residente": "panel del residente",
     "auth.destination.conserje": "panel de conserjería",
+    "auth.otpSummary":
+      "Segundo factor para {{role}} con identificador {{identifier}}.",
+    "auth.otpExpiresAt": "El código expira a las {{expiresAt}}.",
     "auth.errors.networkLogin":
       "No pudimos conectar con el servicio de autenticación. Revisa tu red e intenta otra vez.",
     "auth.errors.networkRegister":
       "No pudimos conectar con el servicio de registro. Revisa tu red e intenta otra vez.",
+    "auth.errors.networkOtp":
+      "No pudimos validar el OTP. Revisa tu conexión e intenta nuevamente.",
     "auth.errors.invalidCredentials":
       "Usuario, email o contraseña incorrectos. Verifica los datos e intenta nuevamente.",
+    "auth.errors.invalidOtp":
+      "El código OTP es incorrecto. Verifica los 6 dígitos e intenta nuevamente.",
+    "auth.errors.otpExpired":
+      "El OTP expiró. Debes volver a iniciar sesión para generar uno nuevo.",
     "auth.errors.invalidResponse":
       "El servicio de autenticación respondió con un formato inválido.",
     "auth.errors.userAlreadyExists":
@@ -248,20 +273,31 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.mode.register": "Sign up",
     "auth.title.login": "Sign in",
     "auth.title.register": "Create account",
+    "auth.title.otp": "Verify OTP code",
     "auth.description.login": "Sign in with your email or username and password.",
     "auth.description.register":
       "Fill in your details to create an account and enter right away.",
+    "auth.description.otp":
+      "Enter the temporary code sent to complete access for {{identifier}}.",
     "auth.selectRole": "Continue as",
     "auth.loginButton": "Sign in as {{role}}",
     "auth.registerButton": "Sign up as {{role}}",
+    "auth.verifyOtpButton": "Verify OTP code",
     "auth.loadingLogin":
       "Validating {{role}} access and preparing your dashboard...",
     "auth.loadingRegister":
       "Creating your {{role}} account and preparing your dashboard...",
+    "auth.loadingOtp": "Validating the second authentication factor...",
     "auth.success.login":
       "Access granted. Redirecting to the {{destination}}.",
     "auth.success.register":
       "Account created successfully. Redirecting to the {{destination}}.",
+    "auth.success.otp":
+      "OTP validated successfully. Redirecting to the {{destination}}.",
+    "auth.success.otpSent":
+      "A temporary OTP was generated. Enter the code to continue.",
+    "auth.success.otpSentWithPreview":
+      "A temporary OTP was generated. For local testing, use code {{code}}.",
     "auth.roleDescription.residente":
       "Track the status and pickup of your packages.",
     "auth.roleDescription.conserje":
@@ -272,6 +308,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.field.identifier": "Email or username",
     "auth.field.password": "Password",
     "auth.field.confirmPassword": "Confirm password",
+    "auth.field.otpCode": "OTP code",
     "auth.placeholder.name": "Example: Martina Soto",
     "auth.placeholder.email": "Example: user@encombox.cl",
     "auth.placeholder.username": "Create your username",
@@ -282,6 +319,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.placeholder.password.login": "Enter your password",
     "auth.placeholder.password.register": "Create a secure password",
     "auth.placeholder.confirmPassword": "Repeat your password",
+    "auth.placeholder.otpCode": "Enter the 6 digits",
     "auth.validation.identifier.required":
       "Enter your institutional email or username.",
     "auth.validation.identifier.invalidEmail":
@@ -301,16 +339,27 @@ const translations: Record<Locale, Record<string, string>> = {
       "Create a password for your account.",
     "auth.validation.confirmPassword.required": "Confirm your password.",
     "auth.validation.confirmPassword.match": "Passwords do not match.",
+    "auth.validation.otpCode.invalid": "Enter a valid 6-digit OTP code.",
     "auth.status.loggingIn": "Signing in...",
     "auth.status.registering": "Signing up...",
+    "auth.status.verifyingOtp": "Verifying OTP...",
     "auth.destination.residente": "resident dashboard",
     "auth.destination.conserje": "concierge dashboard",
+    "auth.otpSummary":
+      "Second factor for {{role}} using identifier {{identifier}}.",
+    "auth.otpExpiresAt": "The code expires at {{expiresAt}}.",
     "auth.errors.networkLogin":
       "We could not connect to the authentication service. Check your network and try again.",
     "auth.errors.networkRegister":
       "We could not connect to the registration service. Check your network and try again.",
+    "auth.errors.networkOtp":
+      "We could not validate the OTP. Check your connection and try again.",
     "auth.errors.invalidCredentials":
       "Incorrect username, email, or password. Check your details and try again.",
+    "auth.errors.invalidOtp":
+      "The OTP code is incorrect. Check the 6 digits and try again.",
+    "auth.errors.otpExpired":
+      "The OTP expired. You must sign in again to generate a new one.",
     "auth.errors.invalidResponse":
       "The authentication service returned an invalid response.",
     "auth.errors.userAlreadyExists":
