@@ -1,4 +1,11 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import LanguageSwitcher from "../components/LanguageSwitcher";
@@ -201,12 +208,14 @@ const Login = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (
-      !googleClientId ||
-      !googleButtonContainerRef.current ||
-      authStep === "otp"
-    ) {
+  // # useLayoutEffect + espera explícita al evento `load` del script evita la condición de carrera
+  // # en la que el tag <script> ya existe (Strict Mode, SPA) pero `window.google` aún no está
+  // # disponible: el intento fallaba una vez y nunca se reintentaba, dejando "Cargando..." fijo.
+  useLayoutEffect(() => {
+    if (!googleClientId || authStep === "otp") {
+      return;
+    }
+    if (!googleButtonContainerRef.current) {
       return;
     }
 
@@ -215,17 +224,17 @@ const Login = () => {
     const scriptId = "google-identity-services";
 
     const renderGoogleButton = () => {
-      if (
-        isCancelled ||
-        !googleButtonContainerRef.current ||
-        !window.google?.accounts.id
-      ) {
+      if (isCancelled) {
+        return;
+      }
+      const container = googleButtonContainerRef.current;
+      if (!container || !window.google?.accounts.id) {
         return;
       }
 
       // # Limpiamos el contenedor antes de renderizar para evitar botones duplicados
       // # cuando React reejecuta efectos en desarrollo o cambia el modo del formulario.
-      googleButtonContainerRef.current.innerHTML = "";
+      container.innerHTML = "";
       window.google.accounts.id.initialize({
         client_id: googleClientId,
         callback: ({ credential }) => {
@@ -238,7 +247,7 @@ const Login = () => {
         cancel_on_tap_outside: true,
       });
 
-      window.google.accounts.id.renderButton(googleButtonContainerRef.current, {
+      window.google.accounts.id.renderButton(container, {
         theme: "outline",
         size: "large",
         text: "continue_with",
@@ -249,27 +258,63 @@ const Login = () => {
       setIsGoogleReady(true);
     };
 
-    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
-
-    if (existingScript) {
-      renderGoogleButton();
-      return () => {
-        isCancelled = true;
-      };
-    }
-
-    const script = document.createElement("script");
-    script.id = scriptId;
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
+    const onScriptLoad = () => {
+      if (isCancelled) {
+        return;
+      }
       renderGoogleButton();
     };
-    document.head.appendChild(script);
+
+    const ensureGsi = () => {
+      if (isCancelled) {
+        return;
+      }
+      if (window.google?.accounts?.id) {
+        onScriptLoad();
+        return;
+      }
+
+      const existing = document.getElementById(
+        scriptId
+      ) as HTMLScriptElement | null;
+
+      if (existing) {
+        existing.addEventListener("load", onScriptLoad, { once: true });
+        // # Si el script ya terminó (caché) o `window.google` aparece en el mismo tick.
+        void queueMicrotask(() => {
+          if (isCancelled) {
+            return;
+          }
+          if (window.google?.accounts?.id) {
+            onScriptLoad();
+          }
+        });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.addEventListener("load", onScriptLoad, { once: true });
+      document.head.appendChild(script);
+      void queueMicrotask(() => {
+        if (isCancelled) {
+          return;
+        }
+        if (window.google?.accounts?.id) {
+          onScriptLoad();
+        }
+      });
+    };
+
+    ensureGsi();
 
     return () => {
       isCancelled = true;
+      const scriptNode = document.getElementById(scriptId);
+      scriptNode?.removeEventListener("load", onScriptLoad);
     };
   }, [authStep, googleClientId, handleGoogleCredential, mode, formData.role]);
 
