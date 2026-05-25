@@ -46,13 +46,15 @@ const MainLayout = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <div className="min-h-screen bg-[#1f1f1f] text-white">
+    // # Esta raíz evita que se genere scroll horizontal indeseado en dispositivos pequeños.
+    <div className="min-h-screen bg-[#1f1f1f] text-white overflow-x-hidden">
       <Navbar
         onToggleMobileNavigation={() =>
           setIsMobileNavigationOpen((current) => !current)
         }
       />
 
+      {/* # Menú inferior para mobile: solo visible en pantallas pequeñas y permite scroll horizontal. */}
       <div className="border-b border-white/10 bg-[#222] px-4 py-3 md:hidden">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-gray-400">
           {t("layout.navigation")}
@@ -82,6 +84,7 @@ const MainLayout = ({ children }: { children: ReactNode }) => {
         )}
       </div>
 
+      {/* # En desktop mostramos sidebar, en mobile queda oculta para ganar espacio. */}
       <div className="md:flex">
         <aside className="hidden w-64 bg-[#2a2a2a] p-4 md:block">
           <h1 className="mb-6 text-lg font-bold text-green-400">
@@ -91,7 +94,8 @@ const MainLayout = ({ children }: { children: ReactNode }) => {
           {renderNavigation("flex flex-col gap-3")}
         </aside>
 
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
+        {/* # min-w-0 evita que los hijos flex se desborden en pantallas pequeñas. */}
+        <main className="flex-1 min-w-0 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

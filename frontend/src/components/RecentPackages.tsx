@@ -75,23 +75,25 @@ const RecentPackages = ({
       )}
 
       {!isLoading && packages.length > 0 && (
+        // # Tabla responsive: permite scroll horizontal si no cabe en pantallas pequeñas.
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="min-w-[640px] w-full table-auto text-left text-sm">
             <thead className="text-gray-400">
               <tr>
-                <th className="pb-3">{apartmentLabel}</th>
-                <th className="pb-3">{senderLabel}</th>
-                <th className="pb-3">{dateLabel}</th>
-                <th className="pb-3">{statusLabel}</th>
+                {/* # Evita que los encabezados de la tabla se rompan y asegura una fila compacta en móvil. */}
+                <th className="pb-3 pr-3 whitespace-nowrap">{apartmentLabel}</th>
+                <th className="pb-3 pr-3 whitespace-nowrap">{senderLabel}</th>
+                <th className="pb-3 pr-3 whitespace-nowrap">{dateLabel}</th>
+                <th className="pb-3 whitespace-nowrap">{statusLabel}</th>
               </tr>
             </thead>
 
             <tbody>
               {packages.map((item) => (
                 <tr key={item.id} className="border-t border-white/10 text-gray-200">
-                  <td className="py-3 pr-3">{item.apartment_number}</td>
-                  <td className="py-3 pr-3">{item.sender}</td>
-                  <td className="py-3 pr-3">
+                  <td className="py-3 pr-3 whitespace-nowrap">{item.apartment_number}</td>
+                  <td className="py-3 pr-3 whitespace-nowrap">{item.sender}</td>
+                  <td className="py-3 pr-3 whitespace-nowrap">
                     {formatDate(
                       item.delivery_date,
                       localeTag,
@@ -99,7 +101,7 @@ const RecentPackages = ({
                       invalidDateLabel
                     )}
                   </td>
-                  <td className="py-3">
+                  <td className="py-3 whitespace-nowrap">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[item.status]}`}
                     >

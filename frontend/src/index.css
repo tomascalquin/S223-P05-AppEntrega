@@ -6,6 +6,8 @@ body {
     Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #f3f4f6;
   color: #111827;
+  /* # Evita el scroll horizontal global cuando los componentes responsivos ocupan más ancho en mobile. */
+  overflow-x: hidden;
 }
 
 * {

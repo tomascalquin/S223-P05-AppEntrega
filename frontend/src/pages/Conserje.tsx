@@ -268,7 +268,8 @@ const Conserje = () => {
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="flex w-full max-w-xl flex-col gap-4 rounded-xl bg-[#2a2a2a] p-4 sm:p-6"
+        // # Formulario responsive: 1 columna en mobile, 2 columnas en tablet/desktops.
+        className="grid w-full max-w-xl grid-cols-1 gap-4 rounded-xl bg-[#2a2a2a] p-4 sm:grid-cols-2 sm:p-6"
       >
         {/* # Campo compatible con recipient_name del backend */}
         <div>
@@ -376,8 +377,8 @@ const Conserje = () => {
         </div>
 
         {/* # Selector visual de urgencia.
-            # Por ahora es un dato solo del frontend hasta que el backend soporte ese campo. */}
-        <div>
+            # En mobile ocupa toda la fila para evitar controles demasiado apretados. */}
+        <div className="sm:col-span-2">
           <p className="text-sm text-gray-300">{t("conserje.field.urgency")}</p>
           <div className="mt-2 flex flex-col gap-3 sm:flex-row">
             <button
@@ -425,13 +426,16 @@ const Conserje = () => {
         )}
 
         {/* # Botón de envío */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded bg-green-600 p-2 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isSubmitting ? t("conserje.submitting") : t("conserje.submit")}
-        </button>
+        {/* # En mobile el botón ocupa todo el ancho, en tablet se alinea a la derecha. */}
+        <div className="sm:col-span-2 flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full rounded bg-green-600 p-2 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {isSubmitting ? t("conserje.submitting") : t("conserje.submit")}
+          </button>
+        </div>
       </form>
     </div>
   );
