@@ -413,9 +413,10 @@ const HistorialEncomiendas = () => {
     : t("historial.description.conserje");
 
   return (
-    <section className="flex flex-col gap-6">
-      {/* # Encabezado y acciones generales de la pantalla. */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className="flex min-w-0 flex-col gap-6">
+      {/* # Contenedor principal responsive: evita desbordes internos sobre ejes flex. */}
+      {/* # El header apila en mobile y se alinea en fila en tablet/desktop. */}
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold text-white">
             {t("historial.title")}
@@ -481,6 +482,7 @@ const HistorialEncomiendas = () => {
             </button>
           </div>
 
+          {/* # Formulario responsive de edición: 1 columna en mobile, 2 columnas en desktop. */}
           <form onSubmit={handleEditSubmit} noValidate className="grid gap-4 md:grid-cols-2">
             {/* # Campo nombre residente */}
             <div>
@@ -681,26 +683,27 @@ const HistorialEncomiendas = () => {
       {/* # Tabla principal con datos reales del backend. */}
       {!isLoading && !errorMessage && packages.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-white/10 bg-[#2a2a2a]">
+          {/* # Panel con scroll horizontal para tablas anchas en mobile. */}
           <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm text-white">
+            <table className="min-w-[720px] w-full table-auto text-left text-sm text-white">
               <thead className="bg-white/5 text-gray-400">
                 <tr>
-                  <th className="px-4 py-3 font-medium">
+                  <th className="px-4 py-3 whitespace-nowrap font-medium">
                     {t("historial.table.resident")}
                   </th>
-                  <th className="px-4 py-3 font-medium">
+                  <th className="px-4 py-3 whitespace-nowrap font-medium">
                     {t("historial.table.apartment")}
                   </th>
-                  <th className="px-4 py-3 font-medium">
+                  <th className="px-4 py-3 whitespace-nowrap font-medium">
                     {t("historial.table.sender")}
                   </th>
-                  <th className="px-4 py-3 font-medium">
+                  <th className="px-4 py-3 whitespace-nowrap font-medium">
                     {t("historial.table.deliveryDate")}
                   </th>
-                  <th className="px-4 py-3 font-medium">
+                  <th className="px-4 py-3 whitespace-nowrap font-medium">
                     {t("historial.table.createdAt")}
                   </th>
-                  <th className="px-4 py-3 font-medium">
+                  <th className="px-4 py-3 whitespace-nowrap font-medium">
                     {t("historial.table.status")}
                   </th>
                   {!isResidentView && (
@@ -724,14 +727,14 @@ const HistorialEncomiendas = () => {
                           : ""
                       }`}
                     >
-                      <td className="px-4 py-3">{item.recipient_name}</td>
-                      <td className="px-4 py-3">{item.apartment_number}</td>
-                      <td className="px-4 py-3">{item.sender}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">{item.recipient_name}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{item.apartment_number}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{item.sender}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
                         {formatDate(item.delivery_date)}
                       </td>
-                      <td className="px-4 py-3">{formatDate(item.created_at)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">{formatDate(item.created_at)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span
                           className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[item.status]}`}
                         >
@@ -740,8 +743,9 @@ const HistorialEncomiendas = () => {
                       </td>
 
                       {!isResidentView && (
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-2">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {/* # Botones de acción apilados en mobile y alineados en fila en tablet. */}
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
                             {/* # Siempre permitimos editar la fila para corregir datos cargados previamente. */}
                             <button
                               type="button"

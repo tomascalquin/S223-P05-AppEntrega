@@ -18,7 +18,8 @@ const toneClasses: Record<StatTone, string> = {
 
 const DashboardStats = ({ items }: DashboardStatsProps) => {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    // # Estadísticas en 1 columna en mobile, 2 columnas en tablet y 3 en desktop.
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {items.map((item) => (
         <article
           key={item.label}

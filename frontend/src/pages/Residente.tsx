@@ -79,6 +79,7 @@ const Residente = () => {
 
   return (
     <section className="flex flex-col gap-6">
+      {/* # Header responsive: apilado en móvil, fila con justificación en tablet. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold text-white">

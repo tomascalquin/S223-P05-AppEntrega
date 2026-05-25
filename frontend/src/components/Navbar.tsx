@@ -18,8 +18,9 @@ const Navbar = ({ onToggleMobileNavigation }: NavbarProps) => {
   };
 
   return (
-    <div className="flex w-full flex-col gap-4 border-b border-white/10 bg-[#252525] p-4 text-white sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center justify-between gap-3">
+    // # Navbar responsive: apila en mobile y cambia a fila en pantallas mayores.
+    <div className="flex w-full min-w-0 flex-col gap-4 border-b border-white/10 bg-[#252525] p-4 text-white sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {user && onToggleMobileNavigation && (
             <button
@@ -40,9 +41,9 @@ const Navbar = ({ onToggleMobileNavigation }: NavbarProps) => {
       {user && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <LanguageSwitcher />
-          <div className="text-left sm:text-right">
-            <p className="text-sm font-medium text-white">{user.name}</p>
-            <p className="text-xs text-gray-400">
+          <div className="min-w-0 text-left sm:text-right">
+            <p className="text-sm font-medium text-white truncate">{user.name}</p>
+            <p className="text-xs text-gray-400 truncate">
               {t(`common.roleLabel.${user.role}`)} · {user.email}
             </p>
           </div>
