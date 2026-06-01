@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../utils/jwt";
+import { verifyToken, type UserRole } from "../utils/jwt";
 
 /**
  * INTERFAZ: AuthRequest
@@ -152,4 +152,124 @@ export function optionalAuthMiddleware(
     // En modo opcional, los errores no bloquean
     next();
   }
+}
+
+/**
+ * MIDDLEWARE: requireRole
+ * 
+ * Verifica que el usuario autenticado tenga uno de los roles especificados.
+ * Debe usarse DESPUÉS del authMiddleware para asegurar que el usuario está autenticado.
+ * 
+ * Uso:
+ * router.get('/admin', authMiddleware, requireRole('conserje'), controlador);
+ * router.post('/package', authMiddleware, requireRole('residente', 'conserje'), controlador);
+ * 
+ * @param allowedRoles - Roles permitidos para acceder al endpoint
+ * @returns Middleware que verifica el rol del usuario
+ * 
+ * Errores:
+ * - 403 Forbidden: Usuario no tiene el rol requerido
+ */
+export function requireRole(...allowedRoles: UserRole[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      // 1. Verifica que exista datos del usuario (debe venir del authMiddleware)
+      if (!req.user) {
+        return res.status(401).json({
+          error: "No autorizado",
+          message: "Usuario no autenticado",
+          code: "NOT_AUTHENTICATED",
+        });
+      }
+
+      // 2. Obtiene el rol del usuario del token
+      const userRole = req.user.role;
+
+      // 3. Verifica que el usuario tenga un rol definido
+      if (!userRole) {
+        return res.status(403).json({
+          error: "Acceso denegado",
+          message: "El usuario no tiene un rol asignado",
+          code: "NO_ROLE_ASSIGNED",
+        });
+      }
+
+      // 4. Verifica si el rol del usuario está en la lista de roles permitidos
+      if (!allowedRoles.includes(userRole)) {
+        return res.status(403).json({
+          error: "Acceso denegado",
+          message: `Esta funcionalidad solo está disponible para: ${allowedRoles.join(", ")}. Tu rol actual es: ${userRole}`,
+          code: "INSUFFICIENT_PERMISSIONS",
+          requiredRoles: allowedRoles,
+          userRole: userRole,
+        });
+      }
+
+      // 5. El usuario tiene permiso, continúa
+      next();
+    } catch (error) {
+      return res.status(500).json({
+        error: "Error procesando autorización",
+        message: error instanceof Error ? error.message : "Error desconocido",
+        code: "AUTH_ERROR",
+      });
+    }
+  };
+}
+
+/**
+ * MIDDLEWARE: requireAllRoles (más restrictivo)
+ * 
+ * Verifica que el usuario tenga TODOS los roles especificados.
+ * Más restrictivo que requireRole que verifica si tiene CUALQUIER rol.
+ * 
+ * Uso: Para endpoints super restrictivos
+ * router.delete('/critical', authMiddleware, requireAllRoles('conserje'), controlador);
+ * 
+ * @param requiredRoles - Todos los roles que debe tener el usuario
+ * @returns Middleware que verifica los roles del usuario
+ */
+export function requireAllRoles(...requiredRoles: UserRole[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          error: "No autorizado",
+          message: "Usuario no autenticado",
+          code: "NOT_AUTHENTICATED",
+        });
+      }
+
+      const userRole = req.user.role;
+
+      if (!userRole) {
+        return res.status(403).json({
+          error: "Acceso denegado",
+          message: "El usuario no tiene un rol asignado",
+          code: "NO_ROLE_ASSIGNED",
+        });
+      }
+
+      // Verifica que tenga TODOS los roles
+      const hasAllRoles = requiredRoles.every((role) => role === userRole);
+
+      if (!hasAllRoles) {
+        return res.status(403).json({
+          error: "Acceso denegado",
+          message: `Se requieren todos estos roles: ${requiredRoles.join(", ")}`,
+          code: "INSUFFICIENT_PERMISSIONS",
+          requiredRoles: requiredRoles,
+          userRole: userRole,
+        });
+      }
+
+      next();
+    } catch (error) {
+      return res.status(500).json({
+        error: "Error procesando autorización",
+        message: error instanceof Error ? error.message : "Error desconocido",
+        code: "AUTH_ERROR",
+      });
+    }
+  };
 }

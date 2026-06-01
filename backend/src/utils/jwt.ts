@@ -1,11 +1,16 @@
 // Importa la librería para crear y validar tokens JWT
 import jwt from "jsonwebtoken";
 
+// Define tipos de usuario válidos
+export type UserRole = "conserje" | "residente";
+
 // Define la estructura básica del payload que guardaremos en el token
 type UserPayload = {
   id: number;
   email: string;
   name: string;
+  role?: UserRole;
+  username?: string;
 };
 
 // Función para generar un JWT cuando el usuario inicia sesión correctamente

@@ -5,15 +5,17 @@
  * y middleware necesarios para manejar autenticación JWT y endpoints protegidos.
  * 
  * RUTAS CONFIGURADAS:
- * - POST /auth/google            → Login con Google (público)
- * - GET  /auth/profile           → Perfil del usuario (protegido)
- * - GET  /api/protected/*        → Rutas protegidas con JWT
+ * - POST /auth/google                    → Login con Google (público)
+ * - GET  /auth/profile                   → Perfil del usuario (protegido)
+ * - GET  /api/protected/*                → Rutas protegidas con JWT
+ * - GET  /api/role-based/*               → Rutas protegidas con control por rol
  */
 
 import express, { Express } from "express";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes";
 import protectedRoutes from "./routes/protectedRoutes";
+import roleBasedRoutes from "./routes/roleBasedRoutes";
 
 /**
  * FUNCIÓN: createApp
@@ -108,6 +110,28 @@ export function createApp(): Express {
    * - DELETE /api/protected/packages/:id      → Eliminar paquete
    */
   app.use("/api/protected", protectedRoutes);
+
+  /**
+   * RUTAS CON CONTROL DE ACCESO POR ROL (requieren JWT + Rol específico)
+   * 
+   * Estas rutas están protegidas por authMiddleware + requireRole.
+   * Demuestran cómo restringir acceso según el tipo de usuario.
+   * 
+   * SOLO CONSERJE:
+   * - GET  /api/role-based/admin/packages               → Panel de paquetes
+   * - POST /api/role-based/admin/packages/mark-as-delivered → Marcar entregado
+   * - GET  /api/role-based/admin/reports                → Reportes de gestión
+   * 
+   * SOLO RESIDENTE:
+   * - GET  /api/role-based/my-packages                  → Ver propias encomiendas
+   * - POST /api/role-based/claim-package                → Reclamar encomienda
+   * - GET  /api/role-based/history                      → Historial de encomiendas
+   * 
+   * AMBOS ROLES (conserje Y residente):
+   * - GET  /api/role-based/profile                      → Obtener perfil
+   * - PUT  /api/role-based/profile/update               → Actualizar perfil
+   */
+  app.use("/api/role-based", roleBasedRoutes);
 
   /**
    * MANEJO DE RUTAS NO ENCONTRADAS (404)
