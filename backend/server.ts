@@ -31,6 +31,14 @@ type UserRow = RowDataPacket & {
   created_at: string;
 };
 
+type AuthorizedEmailRow = RowDataPacket & {
+  id: number;
+  email: string;
+  role: "conserje" | "residente" | "administrador";
+  created_by: number | null;
+  created_at: string;
+};
+
 type AuthTokenPayload = {
   id: number;
   email: string;
@@ -404,6 +412,19 @@ async function createTables() {
     }
 
     console.log("Tabla 'users' creada o ya existe.");
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS authorized_emails (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        role ENUM('conserje', 'residente', 'administrador') NOT NULL DEFAULT 'conserje',
+        created_by INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_email_role (email, role)
+      )
+    `);
+
+    console.log("Tabla 'authorized_emails' creada o ya existe.");
   } catch (error) {
     console.error("Error creando tablas:", error);
   }
@@ -930,6 +951,24 @@ Bun.serve({
           );
         }
 
+        // Si existe al menos una entrada en la whitelist para este rol, el email debe estar incluido.
+        const [whitelistCount] = await db.query<RowDataPacket[]>(
+          "SELECT COUNT(*) as total FROM authorized_emails WHERE role = ?",
+          [role]
+        );
+        if (Number(whitelistCount[0]?.total ?? 0) > 0) {
+          const [whitelistMatch] = await db.query<RowDataPacket[]>(
+            "SELECT id FROM authorized_emails WHERE LOWER(email) = ? AND role = ?",
+            [normalizeIdentifier(user.email), role]
+          );
+          if (whitelistMatch.length === 0) {
+            return jsonResponse(
+              { error: "No estás autorizado para acceder con este rol" },
+              { status: 401 }
+            );
+          }
+        }
+
         const otpCode = createOtpCode();
         const otpSessionId = crypto.randomUUID();
         const otpExpiresAt = createOtpExpirationDate();
@@ -1234,6 +1273,153 @@ Bun.serve({
       } catch (error) {
         return jsonResponse(
           { message: "Error actualizando rol", error: String(error) },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "GET" && url.pathname === "/api/admin/authorized-emails") {
+      try {
+        const admin = ensureAdminRequest(request);
+        if (admin.response) return admin.response;
+
+        const [rows] = await db.query<AuthorizedEmailRow[]>(
+          `SELECT ae.id, ae.email, ae.role, ae.created_by, ae.created_at,
+                  u.name AS created_by_name
+           FROM authorized_emails ae
+           LEFT JOIN users u ON u.id = ae.created_by
+           ORDER BY ae.created_at DESC`
+        );
+
+        const emails = rows.map((r) => ({
+          id: String(r.id),
+          email: r.email,
+          role: r.role,
+          created_by: r.created_by ? String(r.created_by) : null,
+          created_by_name: (r as AuthorizedEmailRow & { created_by_name?: string }).created_by_name ?? null,
+          created_at: r.created_at,
+        }));
+
+        return jsonResponse({ emails });
+      } catch (error) {
+        return jsonResponse(
+          { message: "Error obteniendo correos autorizados", error: String(error) },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "POST" && url.pathname === "/api/admin/authorized-emails") {
+      try {
+        const admin = ensureAdminRequest(request);
+        if (admin.response) return admin.response;
+
+        const body = (await request.json()) as Record<string, unknown>;
+        const email = getRequiredString(body.email);
+        const role = body.role;
+
+        if (!email || !isUserRole(role)) {
+          return jsonResponse(
+            { error: "email y role son requeridos" },
+            { status: 400 }
+          );
+        }
+
+        const normalizedEmail = normalizeIdentifier(email);
+
+        const [result] = await db.query<ResultSetHeader>(
+          "INSERT INTO authorized_emails (email, role, created_by) VALUES (?, ?, ?)",
+          [normalizedEmail, role, admin.user.id]
+        );
+
+        return jsonResponse(
+          {
+            message: "Correo autorizado agregado exitosamente",
+            id: String(result.insertId),
+            email: normalizedEmail,
+            role,
+          },
+          { status: 201 }
+        );
+      } catch (error) {
+        const isDuplicate = String(error).includes("Duplicate entry") || String(error).includes("uq_email_role");
+        if (isDuplicate) {
+          return jsonResponse(
+            { error: "Este correo ya está autorizado para ese rol" },
+            { status: 409 }
+          );
+        }
+        return jsonResponse(
+          { message: "Error agregando correo autorizado", error: String(error) },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "PATCH" && url.pathname.startsWith("/api/admin/authorized-emails/")) {
+      try {
+        const admin = ensureAdminRequest(request);
+        if (admin.response) return admin.response;
+
+        const id = parseUserId(url.pathname);
+        if (!id) return jsonResponse({ error: "id inválido" }, { status: 400 });
+
+        const body = (await request.json()) as Record<string, unknown>;
+        const newRole = body.role;
+
+        if (!isUserRole(newRole)) {
+          return jsonResponse(
+            { error: "role debe ser conserje, residente o administrador" },
+            { status: 400 }
+          );
+        }
+
+        const [result] = await db.query<ResultSetHeader>(
+          "UPDATE authorized_emails SET role = ? WHERE id = ?",
+          [newRole, id]
+        );
+
+        if (result.affectedRows === 0) {
+          return jsonResponse({ error: "Correo autorizado no encontrado" }, { status: 404 });
+        }
+
+        return jsonResponse({ message: "Rol actualizado exitosamente", id, role: newRole });
+      } catch (error) {
+        const isDuplicate = String(error).includes("Duplicate entry") || String(error).includes("uq_email_role");
+        if (isDuplicate) {
+          return jsonResponse(
+            { error: "Este correo ya está autorizado para ese rol" },
+            { status: 409 }
+          );
+        }
+        return jsonResponse(
+          { message: "Error actualizando correo autorizado", error: String(error) },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "DELETE" && url.pathname.startsWith("/api/admin/authorized-emails/")) {
+      try {
+        const admin = ensureAdminRequest(request);
+        if (admin.response) return admin.response;
+
+        const id = parseUserId(url.pathname);
+        if (!id) return jsonResponse({ error: "id inválido" }, { status: 400 });
+
+        const [result] = await db.query<ResultSetHeader>(
+          "DELETE FROM authorized_emails WHERE id = ?",
+          [id]
+        );
+
+        if (result.affectedRows === 0) {
+          return jsonResponse({ error: "Correo autorizado no encontrado" }, { status: 404 });
+        }
+
+        return jsonResponse({ message: "Correo autorizado eliminado exitosamente" });
+      } catch (error) {
+        return jsonResponse(
+          { message: "Error eliminando correo autorizado", error: String(error) },
           { status: 500 }
         );
       }

@@ -8,6 +8,7 @@ import Conserje from "./pages/Conserje";
 import Residente from "./pages/Residente";
 import HistorialEncomiendas from "./pages/HistorialEncomiendas";
 import Admin from "./pages/Admin";
+import AdminEmails from "./pages/AdminEmails";
 import MainLayout from "./layouts/MainLayout";
 
 type ProtectedRouteProps = {
@@ -99,6 +100,15 @@ const App = () => {
         element={
           <ProtectedRoute allowedRole="administrador">
             <Admin />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/correos"
+        element={
+          <ProtectedRoute allowedRole="administrador">
+            <AdminEmails />
           </ProtectedRoute>
         }
       />
