@@ -24,6 +24,7 @@ cd frontend
 npm.cmd install
 npm.cmd run dev
 bun add react-router-dom
+npm install typesafe-i18n
 ```
 
 ## Docker

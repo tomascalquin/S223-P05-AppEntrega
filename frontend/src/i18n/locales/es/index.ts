@@ -21,6 +21,9 @@ const es = {
     roleLabel: {
       residente: 'Residente',
       conserje: 'Conserje',
+      resident: 'Residente',
+      concierge: 'Conserje',
+      administrator: 'Administrador',
     },
   },
   nav: {
@@ -66,6 +69,9 @@ const es = {
     roleDescription: {
       residente: 'Revisa el estado y retiro de tus encomiendas.',
       conserje: 'Administra ingresos e historial de encomiendas.',
+      resident: 'Revisa el estado y retiro de tus encomiendas.',
+      concierge: 'Administra ingresos e historial de encomiendas.',
+      administrator: 'Gestiona usuarios, roles y configuración del sistema.',
     },
     field: {
       name: 'Nombre completo',

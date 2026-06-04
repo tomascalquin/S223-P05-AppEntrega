@@ -30,6 +30,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "common.roleLabel.residente": "Residente",
     "common.roleLabel.conserje": "Conserje",
     "common.roleLabel.administrador": "Administrador",
+    "common.roleLabel.administrator": "Administrador",
     "nav.registerPackage": "Registrar encomienda",
     "nav.history": "Historial",
     "nav.packageHistory": "Historial de encomiendas",
@@ -76,6 +77,8 @@ const translations: Record<Locale, Record<string, string>> = {
       "Administra ingresos e historial de encomiendas.",
     "auth.roleDescription.administrador":
       "Gestiona usuarios y roles del sistema.",
+    "auth.roleDescription.administrator":
+      "Gestiona usuarios, roles y configuración del sistema.",
     "auth.field.name": "Nombre completo",
     "auth.field.email": "Email",
     "auth.field.username": "Nombre de usuario",
@@ -282,6 +285,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "common.roleLabel.residente": "Resident",
     "common.roleLabel.conserje": "Concierge",
     "common.roleLabel.administrador": "Administrator",
+    "common.roleLabel.administrator": "Administrator",
     "nav.registerPackage": "Register package",
     "nav.history": "History",
     "nav.packageHistory": "Package history",
@@ -327,6 +331,8 @@ const translations: Record<Locale, Record<string, string>> = {
       "Manage incoming packages and their history.",
     "auth.roleDescription.administrador":
       "Manage users and system roles.",
+    "auth.roleDescription.administrator":
+      "Manage users, roles and system settings.",
     "auth.field.name": "Full name",
     "auth.field.email": "Email",
     "auth.field.username": "Username",

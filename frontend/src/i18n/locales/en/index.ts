@@ -21,6 +21,9 @@ const en = {
     roleLabel: {
       residente: 'Resident',
       conserje: 'Concierge',
+      resident: 'Resident',
+      concierge: 'Concierge',
+      administrator: 'Administrator',
     },
   },
   nav: {
@@ -66,6 +69,9 @@ const en = {
     roleDescription: {
       residente: 'Track the status and pickup of your packages.',
       conserje: 'Manage incoming packages and their history.',
+      resident: 'Track the status and pickup of your packages.',
+      concierge: 'Manage incoming packages and their history.',
+      administrator: 'Manage users, roles and system settings.',
     },
     field: {
       name: 'Full name',
