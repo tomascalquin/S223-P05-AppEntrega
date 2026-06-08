@@ -9,6 +9,7 @@ import Residente from "./pages/Residente";
 import HistorialEncomiendas from "./pages/HistorialEncomiendas";
 import Admin from "./pages/Admin";
 import AdminEmails from "./pages/AdminEmails";
+import AdminLogs from "./pages/AdminLogs";
 import MainLayout from "./layouts/MainLayout";
 
 type ProtectedRouteProps = {
@@ -109,6 +110,15 @@ const App = () => {
         element={
           <ProtectedRoute allowedRole="administrador">
             <AdminEmails />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/logs"
+        element={
+          <ProtectedRoute allowedRole="administrador">
+            <AdminLogs />
           </ProtectedRoute>
         }
       />

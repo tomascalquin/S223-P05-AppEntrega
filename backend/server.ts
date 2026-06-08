@@ -18,12 +18,15 @@ type PackageRow = RowDataPacket & {
   created_at: string;
 };
 
+type UserEstado = "activo" | "inactivo" | "bloqueado";
+
 type UserRow = RowDataPacket & {
   id: number;
   name: string;
   email: string;
   username: string;
   role: "conserje" | "residente" | "administrador";
+  estado: UserEstado;
   password: string;
   otp_code_hash: string | null;
   otp_expires_at: string | null;
@@ -36,6 +39,15 @@ type AuthorizedEmailRow = RowDataPacket & {
   email: string;
   role: "conserje" | "residente" | "administrador";
   created_by: number | null;
+  created_at: string;
+};
+
+type AuditLogRow = RowDataPacket & {
+  id: number;
+  admin_id: number | null;
+  admin_nombre: string | null;
+  accion: string;
+  detalles: string | null;
   created_at: string;
 };
 
@@ -53,7 +65,7 @@ type UserRole = AuthTokenPayload["role"];
 // # incluso cuando están corriendo en otro puerto.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
@@ -108,6 +120,10 @@ const getOptionalString = (value: unknown) => {
 
 const isUserRole = (value: unknown): value is UserRole => {
   return value === "conserje" || value === "residente" || value === "administrador";
+};
+
+const isUserEstado = (value: unknown): value is UserEstado => {
+  return value === "activo" || value === "inactivo" || value === "bloqueado";
 };
 
 const normalizeIdentifier = (value: string) => {
@@ -265,7 +281,7 @@ const ensureRoleAccess = (user: AuthTokenPayload, role: UserRole) => {
   if (user.role !== role) {
     return jsonResponse(
       {
-        error: "No tienes permisos para realizar esta accion",
+        error: `No tienes permisos para realizar esta acción. Se requiere el rol '${role}'.`,
       },
       { status: 403 }
     );
@@ -285,7 +301,7 @@ const ensureAdminRequest = (request: Request) => {
     return {
       user: null,
       response: jsonResponse(
-        { error: "Acceso restringido a administradores" },
+        { error: "No tienes permisos para acceder al panel de administración." },
         { status: 403 }
       ),
     };
@@ -294,8 +310,50 @@ const ensureAdminRequest = (request: Request) => {
   return { user: auth.user, response: null };
 };
 
+const registrarLog = async (
+  adminId: number | null,
+  adminNombre: string | null,
+  accion: string,
+  detalles?: string
+) => {
+  try {
+    await db.query(
+      "INSERT INTO audit_logs (admin_id, admin_nombre, accion, detalles) VALUES (?, ?, ?, ?)",
+      [adminId, adminNombre, accion, detalles ?? null]
+    );
+  } catch (err) {
+    console.error("[AuditLog] Error registrando acción:", err);
+  }
+};
+
+const ensureAdminConLog = async (request: Request, rutaAccedida: string) => {
+  const admin = ensureAdminRequest(request);
+
+  if (admin.response) {
+    try {
+      const userInfo = getAuthenticatedUser(request);
+      await registrarLog(
+        userInfo.id,
+        userInfo.name,
+        "acceso_no_autorizado",
+        `Intento de acceso a '${rutaAccedida}' por usuario con rol '${userInfo.role}'`
+      );
+    } catch {
+      await registrarLog(null, null, "acceso_no_autorizado", `Intento de acceso no autenticado a '${rutaAccedida}'`);
+    }
+  }
+
+  return admin;
+};
+
 const parseUserId = (pathname: string) => {
   const id = Number(pathname.split("/").pop());
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const parseUserIdFromSegment = (pathname: string, segmentIndex: number) => {
+  const parts = pathname.split("/");
+  const id = Number(parts[segmentIndex]);
   return Number.isInteger(id) && id > 0 ? id : null;
 };
 
@@ -366,6 +424,7 @@ async function createTables() {
         email VARCHAR(255) NOT NULL UNIQUE,
         username VARCHAR(255) NOT NULL UNIQUE,
         role ENUM('conserje', 'residente', 'administrador') NOT NULL DEFAULT 'residente',
+        estado ENUM('activo', 'inactivo', 'bloqueado') NOT NULL DEFAULT 'activo',
         password VARCHAR(255) NOT NULL,
         otp_code_hash VARCHAR(255) NULL,
         otp_expires_at DATETIME NULL,
@@ -392,6 +451,10 @@ async function createTables() {
     await ensureUserColumn(
       "role",
       "role ENUM('conserje', 'residente', 'administrador') NOT NULL DEFAULT 'residente'"
+    );
+    await ensureUserColumn(
+      "estado",
+      "estado ENUM('activo', 'inactivo', 'bloqueado') NOT NULL DEFAULT 'activo'"
     );
     await ensureUserColumn("otp_code_hash", "otp_code_hash VARCHAR(255) NULL");
     await ensureUserColumn("otp_expires_at", "otp_expires_at DATETIME NULL");
@@ -425,6 +488,22 @@ async function createTables() {
     `);
 
     console.log("Tabla 'authorized_emails' creada o ya existe.");
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        admin_id INT NULL,
+        admin_nombre VARCHAR(255) NULL,
+        accion VARCHAR(100) NOT NULL,
+        detalles TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_accion (accion),
+        INDEX idx_admin_id (admin_id),
+        INDEX idx_created_at (created_at)
+      )
+    `);
+
+    console.log("Tabla 'audit_logs' creada o ya existe.");
   } catch (error) {
     console.error("Error creando tablas:", error);
   }
@@ -951,6 +1030,21 @@ Bun.serve({
           );
         }
 
+        if (user.estado === "bloqueado") {
+          await registrarLog(null, null, "intento_acceso_bloqueado", `Usuario bloqueado intentó iniciar sesión: ${user.email} (id=${user.id})`);
+          return jsonResponse(
+            { error: "Tu cuenta ha sido bloqueada. Contacta al administrador del edificio." },
+            { status: 403 }
+          );
+        }
+
+        if (user.estado === "inactivo") {
+          return jsonResponse(
+            { error: "Tu cuenta está inactiva. Contacta al administrador del edificio." },
+            { status: 403 }
+          );
+        }
+
         // Si existe al menos una entrada en la whitelist para este rol, el email debe estar incluido.
         const [whitelistCount] = await db.query<RowDataPacket[]>(
           "SELECT COUNT(*) as total FROM authorized_emails WHERE role = ?",
@@ -1028,6 +1122,28 @@ Bun.serve({
         }
 
         const user = rows[0];
+
+        if (user.estado === "bloqueado") {
+          await db.query(
+            `UPDATE users SET otp_code_hash = NULL, otp_expires_at = NULL, otp_session_id = NULL WHERE id = ?`,
+            [user.id]
+          );
+          return jsonResponse(
+            { error: "Tu cuenta ha sido bloqueada. Contacta al administrador del edificio." },
+            { status: 403 }
+          );
+        }
+
+        if (user.estado === "inactivo") {
+          await db.query(
+            `UPDATE users SET otp_code_hash = NULL, otp_expires_at = NULL, otp_session_id = NULL WHERE id = ?`,
+            [user.id]
+          );
+          return jsonResponse(
+            { error: "Tu cuenta está inactiva. Contacta al administrador del edificio." },
+            { status: 403 }
+          );
+        }
 
         if (!user.otp_code_hash || !user.otp_expires_at) {
           return jsonResponse(
@@ -1129,12 +1245,29 @@ Bun.serve({
         let user: AuthTokenPayload;
 
         if (rows.length > 0) {
+          const existingUser = rows[0];
+
+          if (existingUser.estado === "bloqueado") {
+            await registrarLog(null, null, "intento_acceso_bloqueado", `Usuario bloqueado intentó iniciar sesión con Google: ${existingUser.email}`);
+            return jsonResponse(
+              { error: "Tu cuenta ha sido bloqueada. Contacta al administrador del edificio." },
+              { status: 403 }
+            );
+          }
+
+          if (existingUser.estado === "inactivo") {
+            return jsonResponse(
+              { error: "Tu cuenta está inactiva. Contacta al administrador del edificio." },
+              { status: 403 }
+            );
+          }
+
           user = {
-            id: rows[0].id,
-            name: rows[0].name,
-            email: rows[0].email,
-            username: rows[0].username,
-            role: rows[0].role,
+            id: existingUser.id,
+            name: existingUser.name,
+            email: existingUser.email,
+            username: existingUser.username,
+            role: existingUser.role,
           };
         } else {
           const googleUsernameBase = normalizeIdentifier(
@@ -1201,14 +1334,14 @@ Bun.serve({
 
     if (method === "GET" && url.pathname === "/api/admin/users") {
       try {
-        const admin = ensureAdminRequest(request);
+        const admin = await ensureAdminConLog(request, "GET /api/admin/users");
 
         if (admin.response) {
           return admin.response;
         }
 
         const [rows] = await db.query<UserRow[]>(
-          "SELECT id, name, email, username, role, created_at FROM users ORDER BY created_at DESC"
+          "SELECT id, name, email, username, role, estado, created_at FROM users ORDER BY created_at DESC"
         );
 
         const users = rows.map((u) => ({
@@ -1217,6 +1350,7 @@ Bun.serve({
           email: u.email,
           username: u.username,
           role: u.role,
+          estado: u.estado,
           created_at: u.created_at,
         }));
 
@@ -1229,9 +1363,83 @@ Bun.serve({
       }
     }
 
+    // # El endpoint de estado debe ir antes del PATCH genérico para que el
+    // # parseUserId del PATCH genérico no reciba "estado" como id.
+    if (method === "PATCH" && /^\/api\/admin\/users\/\d+\/estado$/.test(url.pathname)) {
+      try {
+        const admin = await ensureAdminConLog(request, `PATCH ${url.pathname}`);
+
+        if (admin.response) {
+          return admin.response;
+        }
+
+        const segments = url.pathname.split("/");
+        const id = parseUserIdFromSegment(url.pathname, segments.indexOf("users") + 1);
+
+        if (!id) {
+          return jsonResponse({ error: "id inválido" }, { status: 400 });
+        }
+
+        if (id === admin.user.id) {
+          return jsonResponse(
+            { error: "No puedes cambiar tu propio estado de cuenta." },
+            { status: 403 }
+          );
+        }
+
+        const body = (await request.json()) as Record<string, unknown>;
+        const nuevoEstado = body.estado;
+
+        if (!isUserEstado(nuevoEstado)) {
+          return jsonResponse(
+            { error: "estado debe ser activo, inactivo o bloqueado" },
+            { status: 400 }
+          );
+        }
+
+        const [targetRows] = await db.query<UserRow[]>(
+          "SELECT id, name, email, role FROM users WHERE id = ?",
+          [id]
+        );
+
+        if (targetRows.length === 0) {
+          return jsonResponse({ error: "Usuario no encontrado" }, { status: 404 });
+        }
+
+        const targetUser = targetRows[0];
+
+        const [result] = await db.query<ResultSetHeader>(
+          "UPDATE users SET estado = ? WHERE id = ?",
+          [nuevoEstado, id]
+        );
+
+        if (result.affectedRows === 0) {
+          return jsonResponse({ error: "Usuario no encontrado" }, { status: 404 });
+        }
+
+        await registrarLog(
+          admin.user.id,
+          admin.user.name,
+          "cambio_estado_usuario",
+          `Estado de '${targetUser.name}' (${targetUser.email}) cambiado a '${nuevoEstado}'`
+        );
+
+        return jsonResponse({
+          message: "Estado de usuario actualizado exitosamente",
+          id,
+          estado: nuevoEstado,
+        });
+      } catch (error) {
+        return jsonResponse(
+          { message: "Error actualizando estado de usuario", error: String(error) },
+          { status: 500 }
+        );
+      }
+    }
+
     if (method === "PATCH" && url.pathname.startsWith("/api/admin/users/")) {
       try {
-        const admin = ensureAdminRequest(request);
+        const admin = await ensureAdminConLog(request, `PATCH ${url.pathname}`);
 
         if (admin.response) {
           return admin.response;
@@ -1255,10 +1463,22 @@ Bun.serve({
 
         if (id === admin.user.id) {
           return jsonResponse(
-            { error: "No puedes cambiar tu propio rol" },
+            { error: "No puedes cambiar tu propio rol." },
             { status: 403 }
           );
         }
+
+        const [targetRows] = await db.query<UserRow[]>(
+          "SELECT id, name, email, role FROM users WHERE id = ?",
+          [id]
+        );
+
+        if (targetRows.length === 0) {
+          return jsonResponse({ error: "Usuario no encontrado" }, { status: 404 });
+        }
+
+        const targetUser = targetRows[0];
+        const previousRole = targetUser.role;
 
         const [result] = await db.query<ResultSetHeader>(
           "UPDATE users SET role = ? WHERE id = ?",
@@ -1269,6 +1489,13 @@ Bun.serve({
           return jsonResponse({ error: "Usuario no encontrado" }, { status: 404 });
         }
 
+        await registrarLog(
+          admin.user.id,
+          admin.user.name,
+          "cambio_rol",
+          `Rol de '${targetUser.name}' (${targetUser.email}) cambiado de '${previousRole}' a '${newRole}'`
+        );
+
         return jsonResponse({ message: "Rol actualizado exitosamente", id, role: newRole });
       } catch (error) {
         return jsonResponse(
@@ -1278,9 +1505,108 @@ Bun.serve({
       }
     }
 
+    if (method === "DELETE" && url.pathname.startsWith("/api/admin/users/")) {
+      try {
+        const admin = await ensureAdminConLog(request, `DELETE ${url.pathname}`);
+
+        if (admin.response) {
+          return admin.response;
+        }
+
+        const id = parseUserId(url.pathname);
+
+        if (!id) {
+          return jsonResponse({ error: "id inválido" }, { status: 400 });
+        }
+
+        if (id === admin.user.id) {
+          return jsonResponse(
+            { error: "No puedes eliminar tu propia cuenta de administrador." },
+            { status: 403 }
+          );
+        }
+
+        const [targetRows] = await db.query<UserRow[]>(
+          "SELECT id, name, email, role FROM users WHERE id = ?",
+          [id]
+        );
+
+        if (targetRows.length === 0) {
+          return jsonResponse({ error: "Usuario no encontrado" }, { status: 404 });
+        }
+
+        const targetUser = targetRows[0];
+
+        const [result] = await db.query<ResultSetHeader>(
+          "DELETE FROM users WHERE id = ?",
+          [id]
+        );
+
+        if (result.affectedRows === 0) {
+          return jsonResponse({ error: "Usuario no encontrado" }, { status: 404 });
+        }
+
+        await registrarLog(
+          admin.user.id,
+          admin.user.name,
+          "eliminar_usuario",
+          `Usuario '${targetUser.name}' (${targetUser.email}, rol: ${targetUser.role}) eliminado del sistema`
+        );
+
+        return jsonResponse({ message: "Usuario eliminado exitosamente", id });
+      } catch (error) {
+        return jsonResponse(
+          { message: "Error eliminando usuario", error: String(error) },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "GET" && url.pathname === "/api/admin/logs") {
+      try {
+        const admin = await ensureAdminConLog(request, "GET /api/admin/logs");
+
+        if (admin.response) {
+          return admin.response;
+        }
+
+        const limite = Math.min(Number(url.searchParams.get("limite") ?? 100), 500);
+        const offset = Math.max(Number(url.searchParams.get("offset") ?? 0), 0);
+
+        const [rows] = await db.query<AuditLogRow[]>(
+          `SELECT id, admin_id, admin_nombre, accion, detalles, created_at
+           FROM audit_logs
+           ORDER BY created_at DESC
+           LIMIT ? OFFSET ?`,
+          [limite, offset]
+        );
+
+        const [countRows] = await db.query<RowDataPacket[]>(
+          "SELECT COUNT(*) as total FROM audit_logs"
+        );
+        const total = Number(countRows[0]?.total ?? 0);
+
+        const logs = rows.map((l) => ({
+          id: String(l.id),
+          admin_id: l.admin_id ? String(l.admin_id) : null,
+          admin_nombre: l.admin_nombre,
+          accion: l.accion,
+          detalles: l.detalles,
+          created_at: l.created_at,
+        }));
+
+        return jsonResponse({ logs, total, limite, offset });
+      } catch (error) {
+        return jsonResponse(
+          { message: "Error obteniendo logs", error: String(error) },
+          { status: 500 }
+        );
+      }
+    }
+
     if (method === "GET" && url.pathname === "/api/admin/authorized-emails") {
       try {
-        const admin = ensureAdminRequest(request);
+        const admin = await ensureAdminConLog(request, "GET /api/admin/authorized-emails");
         if (admin.response) return admin.response;
 
         const [rows] = await db.query<AuthorizedEmailRow[]>(
@@ -1311,7 +1637,7 @@ Bun.serve({
 
     if (method === "POST" && url.pathname === "/api/admin/authorized-emails") {
       try {
-        const admin = ensureAdminRequest(request);
+        const admin = await ensureAdminConLog(request, "POST /api/admin/authorized-emails");
         if (admin.response) return admin.response;
 
         const body = (await request.json()) as Record<string, unknown>;
@@ -1330,6 +1656,13 @@ Bun.serve({
         const [result] = await db.query<ResultSetHeader>(
           "INSERT INTO authorized_emails (email, role, created_by) VALUES (?, ?, ?)",
           [normalizedEmail, role, admin.user.id]
+        );
+
+        await registrarLog(
+          admin.user.id,
+          admin.user.name,
+          "agregar_email_autorizado",
+          `Correo '${normalizedEmail}' autorizado para rol '${role}'`
         );
 
         return jsonResponse(
@@ -1358,7 +1691,7 @@ Bun.serve({
 
     if (method === "PATCH" && url.pathname.startsWith("/api/admin/authorized-emails/")) {
       try {
-        const admin = ensureAdminRequest(request);
+        const admin = await ensureAdminConLog(request, `PATCH ${url.pathname}`);
         if (admin.response) return admin.response;
 
         const id = parseUserId(url.pathname);
@@ -1383,6 +1716,13 @@ Bun.serve({
           return jsonResponse({ error: "Correo autorizado no encontrado" }, { status: 404 });
         }
 
+        await registrarLog(
+          admin.user.id,
+          admin.user.name,
+          "cambio_rol_email_autorizado",
+          `Rol del correo autorizado id=${id} cambiado a '${newRole}'`
+        );
+
         return jsonResponse({ message: "Rol actualizado exitosamente", id, role: newRole });
       } catch (error) {
         const isDuplicate = String(error).includes("Duplicate entry") || String(error).includes("uq_email_role");
@@ -1401,11 +1741,16 @@ Bun.serve({
 
     if (method === "DELETE" && url.pathname.startsWith("/api/admin/authorized-emails/")) {
       try {
-        const admin = ensureAdminRequest(request);
+        const admin = await ensureAdminConLog(request, `DELETE ${url.pathname}`);
         if (admin.response) return admin.response;
 
         const id = parseUserId(url.pathname);
         if (!id) return jsonResponse({ error: "id inválido" }, { status: 400 });
+
+        const [emailRows] = await db.query<AuthorizedEmailRow[]>(
+          "SELECT email, role FROM authorized_emails WHERE id = ?",
+          [id]
+        );
 
         const [result] = await db.query<ResultSetHeader>(
           "DELETE FROM authorized_emails WHERE id = ?",
@@ -1414,6 +1759,15 @@ Bun.serve({
 
         if (result.affectedRows === 0) {
           return jsonResponse({ error: "Correo autorizado no encontrado" }, { status: 404 });
+        }
+
+        if (emailRows.length > 0) {
+          await registrarLog(
+            admin.user.id,
+            admin.user.name,
+            "eliminar_email_autorizado",
+            `Correo '${emailRows[0].email}' (rol: ${emailRows[0].role}) eliminado de la whitelist`
+          );
         }
 
         return jsonResponse({ message: "Correo autorizado eliminado exitosamente" });

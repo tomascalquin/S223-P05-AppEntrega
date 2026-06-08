@@ -17,6 +17,7 @@ const navigationByRole = {
   administrador: [
     { labelKey: "nav.userManagement", to: "/admin" },
     { labelKey: "nav.authorizedEmails", to: "/admin/correos" },
+    { labelKey: "nav.auditLogs", to: "/admin/logs" },
   ],
 };
 

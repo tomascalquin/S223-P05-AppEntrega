@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { fetchUsers, updateUserRole, type AdminUser } from "../services/admin";
+import {
+  fetchUsers,
+  updateUserRole,
+  updateUserEstado,
+  deleteUser,
+  type AdminUser,
+  type UserEstado,
+} from "../services/admin";
 import type { Role } from "../services/auth";
 
 const ALL_ROLES: Role[] = ["residente", "conserje", "administrador"];
@@ -17,14 +24,38 @@ const ROLE_COLORS: Record<Role, string> = {
   administrador: "bg-purple-500/15 text-purple-300 border-purple-500/30",
 };
 
+const ESTADO_LABELS: Record<UserEstado, string> = {
+  activo: "Activo",
+  inactivo: "Inactivo",
+  bloqueado: "Bloqueado",
+};
+
+const ESTADO_COLORS: Record<UserEstado, string> = {
+  activo: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  inactivo: "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
+  bloqueado: "bg-red-500/15 text-red-300 border-red-500/30",
+};
+
+type ModalConfirm = {
+  tipo: "rol" | "estado" | "eliminar";
+  userId: string;
+  userName: string;
+  valorNuevo?: string;
+  mensaje: string;
+};
+
 const Admin = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [pendingRole, setPendingRole] = useState<Record<string, Role>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [savedFeedback, setSavedFeedback] = useState<Record<string, boolean>>({});
+
+  const [modal, setModal] = useState<ModalConfirm | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,31 +82,81 @@ const Admin = () => {
     setSavedFeedback((prev) => ({ ...prev, [userId]: false }));
   };
 
-  const handleSaveRole = async (userId: string) => {
-    const role = pendingRole[userId];
-    if (!role) return;
+  const solicitarConfirmacionRol = (userId: string, userName: string, nuevoRol: Role) => {
+    setModal({
+      tipo: "rol",
+      userId,
+      userName,
+      valorNuevo: nuevoRol,
+      mensaje: `¿Confirmas cambiar el rol de "${userName}" a "${ROLE_LABELS[nuevoRol]}"?`,
+    });
+  };
 
-    setSaving((prev) => ({ ...prev, [userId]: true }));
+  const solicitarConfirmacionEstado = (userId: string, userName: string, nuevoEstado: UserEstado) => {
+    const accion = nuevoEstado === "bloqueado"
+      ? `bloquear la cuenta de "${userName}". No podrá iniciar sesión.`
+      : nuevoEstado === "inactivo"
+      ? `desactivar la cuenta de "${userName}".`
+      : `reactivar la cuenta de "${userName}".`;
+
+    setModal({
+      tipo: "estado",
+      userId,
+      userName,
+      valorNuevo: nuevoEstado,
+      mensaje: `¿Confirmas ${accion}`,
+    });
+  };
+
+  const solicitarConfirmacionEliminar = (userId: string, userName: string) => {
+    setModal({
+      tipo: "eliminar",
+      userId,
+      userName,
+      mensaje: `¿Estás seguro de que deseas eliminar permanentemente la cuenta de "${userName}"? Esta acción no se puede deshacer.`,
+    });
+  };
+
+  const ejecutarConfirmacion = async () => {
+    if (!modal) return;
+
+    setConfirmando(true);
     setError("");
 
     try {
-      await updateUserRole(userId, role);
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role } : u))
-      );
-      setPendingRole((prev) => {
-        const next = { ...prev };
-        delete next[userId];
-        return next;
-      });
-      setSavedFeedback((prev) => ({ ...prev, [userId]: true }));
-      setTimeout(() => {
-        setSavedFeedback((prev) => ({ ...prev, [userId]: false }));
-      }, 2000);
+      if (modal.tipo === "rol" && modal.valorNuevo) {
+        const role = modal.valorNuevo as Role;
+        setSaving((prev) => ({ ...prev, [modal.userId]: true }));
+        await updateUserRole(modal.userId, role);
+        setUsers((prev) =>
+          prev.map((u) => (u.id === modal.userId ? { ...u, role } : u))
+        );
+        setPendingRole((prev) => {
+          const next = { ...prev };
+          delete next[modal.userId];
+          return next;
+        });
+        setSavedFeedback((prev) => ({ ...prev, [modal.userId]: true }));
+        setTimeout(() => {
+          setSavedFeedback((prev) => ({ ...prev, [modal.userId]: false }));
+        }, 2000);
+        setSaving((prev) => ({ ...prev, [modal.userId]: false }));
+      } else if (modal.tipo === "estado" && modal.valorNuevo) {
+        const estado = modal.valorNuevo as UserEstado;
+        await updateUserEstado(modal.userId, estado);
+        setUsers((prev) =>
+          prev.map((u) => (u.id === modal.userId ? { ...u, estado } : u))
+        );
+      } else if (modal.tipo === "eliminar") {
+        await deleteUser(modal.userId);
+        setUsers((prev) => prev.filter((u) => u.id !== modal.userId));
+      }
+
+      setModal(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al actualizar rol");
+      setError(err instanceof Error ? err.message : "Error al realizar la acción");
     } finally {
-      setSaving((prev) => ({ ...prev, [userId]: false }));
+      setConfirmando(false);
     }
   };
 
@@ -98,7 +179,7 @@ const Admin = () => {
           Panel de Administración
         </h1>
         <p className="mt-2 text-sm text-gray-400">
-          Gestiona usuarios y roles del sistema.
+          Gestiona usuarios, roles y estados de acceso del sistema.
         </p>
       </div>
 
@@ -131,13 +212,15 @@ const Admin = () => {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="border-b border-white/8 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   <th className="px-5 py-3">Nombre</th>
                   <th className="px-5 py-3">Email / Usuario</th>
-                  <th className="px-5 py-3">Rol actual</th>
+                  <th className="px-5 py-3">Rol</th>
                   <th className="px-5 py-3">Cambiar rol</th>
+                  <th className="px-5 py-3">Estado</th>
+                  <th className="px-5 py-3">Acciones</th>
                   <th className="px-5 py-3">Registrado</th>
                 </tr>
               </thead>
@@ -158,9 +241,7 @@ const Admin = () => {
                       <td className="px-5 py-3.5">
                         <p className="font-medium text-white">{u.name}</p>
                         {isSelf && (
-                          <p className="mt-0.5 text-xs text-yellow-400/80">
-                            Tu cuenta
-                          </p>
+                          <p className="mt-0.5 text-xs text-yellow-400/80">Tu cuenta</p>
                         )}
                       </td>
                       <td className="px-5 py-3.5 text-gray-300">
@@ -176,9 +257,7 @@ const Admin = () => {
                       </td>
                       <td className="px-5 py-3.5">
                         {isSelf ? (
-                          <span className="text-xs text-gray-500">
-                            No disponible
-                          </span>
+                          <span className="text-xs text-gray-500">No disponible</span>
                         ) : (
                           <div className="flex items-center gap-2">
                             <select
@@ -199,7 +278,9 @@ const Admin = () => {
                             {isDirty && (
                               <button
                                 type="button"
-                                onClick={() => void handleSaveRole(u.id)}
+                                onClick={() =>
+                                  solicitarConfirmacionRol(u.id, u.name, selected as Role)
+                                }
                                 disabled={isSaving}
                                 className="rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                               >
@@ -215,10 +296,53 @@ const Admin = () => {
                             )}
 
                             {justSaved && !isDirty && (
-                              <span className="text-xs text-emerald-400">
-                                Guardado
-                              </span>
+                              <span className="text-xs text-emerald-400">Guardado</span>
                             )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${ESTADO_COLORS[u.estado ?? "activo"]}`}
+                        >
+                          {ESTADO_LABELS[u.estado ?? "activo"]}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {isSelf ? (
+                          <span className="text-xs text-gray-500">—</span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {u.estado !== "bloqueado" ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  solicitarConfirmacionEstado(u.id, u.name, "bloqueado")
+                                }
+                                className="rounded-xl border border-orange-400/30 px-3 py-1 text-xs font-medium text-orange-400 transition hover:bg-orange-400/10"
+                              >
+                                Bloquear
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  solicitarConfirmacionEstado(u.id, u.name, "activo")
+                                }
+                                className="rounded-xl border border-emerald-400/30 px-3 py-1 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/10"
+                              >
+                                Activar
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                solicitarConfirmacionEliminar(u.id, u.name)
+                              }
+                              className="rounded-xl border border-red-400/30 px-3 py-1 text-xs font-medium text-red-400 transition hover:bg-red-400/10"
+                            >
+                              Eliminar
+                            </button>
                           </div>
                         )}
                       </td>
@@ -233,6 +357,59 @@ const Admin = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de confirmación */}
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#2a2a2a] p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-white">
+              {modal.tipo === "eliminar"
+                ? "Confirmar eliminación"
+                : modal.tipo === "estado"
+                ? "Confirmar cambio de estado"
+                : "Confirmar cambio de rol"}
+            </h3>
+
+            {modal.tipo === "eliminar" && (
+              <div className="mt-3 rounded-xl border border-red-400/20 bg-red-400/8 px-3 py-2 text-xs text-red-300">
+                Advertencia: esta acción eliminará permanentemente al usuario y no puede revertirse.
+              </div>
+            )}
+
+            <p className="mt-3 text-sm text-gray-300">{modal.mensaje}</p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModal(null)}
+                disabled={confirmando}
+                className="rounded-xl border border-white/10 px-4 py-2 text-sm text-gray-300 transition hover:bg-white/5 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void ejecutarConfirmacion()}
+                disabled={confirmando}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  modal.tipo === "eliminar"
+                    ? "bg-red-500 text-white hover:bg-red-400"
+                    : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+                }`}
+              >
+                {confirmando ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/20 border-t-current" />
+                    Procesando...
+                  </span>
+                ) : (
+                  "Confirmar"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
