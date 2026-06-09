@@ -32,7 +32,8 @@ const colors = {
 };
 
 // Configuración del servidor
-const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
+const PORT = process.env.PORT || "3001";
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const API_TIMEOUT = 5000; // 5 segundos
 
 // Usuario de prueba
