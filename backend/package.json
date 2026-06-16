@@ -7,9 +7,10 @@
     "start": "bun run src/index.ts",
     "server": "bun run src/server.ts",
     "test-auth": "bun run tests/test-auth.ts",
+    "test-jwt": "bun run tests/test-jwt-complete.ts",
     "test-endpoints": "bun run tests/test-protected-endpoints.ts",
     "test-db": "bun run tests/test-db.ts",
-    "test:all": "echo '🧪 Running all tests...' && bun run tests/test-auth.ts && bun run tests/validate-data.ts"
+    "test:all": "echo '🧪 Running all tests...' && bun run tests/test-jwt-complete.ts && bun run tests/test-auth.ts && bun run tests/validate-data.ts"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
