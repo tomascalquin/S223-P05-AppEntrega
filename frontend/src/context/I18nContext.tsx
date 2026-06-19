@@ -5,16 +5,17 @@ import {
   getStoredLocale,
   localeLabels,
   setStoredLocale,
-  translateText,
+  getNestedValue,
+  interpolateString,
   type Locale,
-  type TranslationParams,
-} from "../i18n/translations";
+} from "../services/i18n";
+import { getTranslations } from "../services/translationLoader";
 
 type I18nContextType = {
   locale: Locale;
   localeTag: string;
   setLocale: (locale: Locale) => void;
-  t: (key: string, params?: TranslationParams) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
   formatDate: (value: Date | string, options?: Intl.DateTimeFormatOptions) => string;
   localeLabels: Record<Locale, string>;
 };
@@ -31,13 +32,17 @@ export const I18nProvider = ({ children }: { children: ReactNode }) => {
 
   const contextValue = useMemo<I18nContextType>(() => {
     const localeTag = getLocaleTag(locale);
+    const translations = getTranslations(locale);
 
     return {
       locale,
       localeTag,
       setLocale: setLocaleState,
-      // # `t` centraliza textos dinámicos y `formatDate` mantiene el formato alineado al idioma activo.
-      t: (key, params) => translateText(locale, key, params),
+      // # `t` centraliza textos dinámicos con tipado seguro y soporte para parámetros.
+      t: (key, params) => {
+        const template = getNestedValue(translations as any, key) ?? key;
+        return interpolateString(template, params);
+      },
       formatDate: (value, options) => {
         const parsedDate = value instanceof Date ? value : new Date(value);
         return new Intl.DateTimeFormat(localeTag, options).format(parsedDate);

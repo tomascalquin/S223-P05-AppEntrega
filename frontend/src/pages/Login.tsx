@@ -19,6 +19,7 @@ import {
 
 type AuthMode = "login" | "register";
 type AuthStep = "credentials" | "otp";
+type RoleTranslationKey = "resident" | "concierge" | "administrator";
 
 type AuthFormState = {
   role: Role;
@@ -62,6 +63,20 @@ const initialFieldErrors: AuthFieldErrors = {
   otpCode: "",
 };
 
+const normalizeRoleTranslationKey = (role: string): RoleTranslationKey => {
+  const roleAliases: Record<string, RoleTranslationKey> = {
+    resident: "resident",
+    residente: "resident",
+    concierge: "concierge",
+    conserje: "concierge",
+    administrador: "administrator",
+    admin: "administrator",
+    administrator: "administrator",
+  };
+
+  return roleAliases[role] ?? "resident";
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const redirectTimeoutRef = useRef<number | null>(null);
@@ -91,23 +106,16 @@ const Login = () => {
 
   // # Las tarjetas de rol se reconstruyen con `t(...)` para actualizarse al cambiar idioma sin duplicar JSX.
   const roleOptions = useMemo(
-    () => [
-      {
-        value: "residente" as const,
-        label: t("common.roleLabel.residente"),
-        description: t("auth.roleDescription.residente"),
-      },
-      {
-        value: "conserje" as const,
-        label: t("common.roleLabel.conserje"),
-        description: t("auth.roleDescription.conserje"),
-      },
-      {
-        value: "administrador" as const,
-        label: t("common.roleLabel.administrador"),
-        description: t("auth.roleDescription.administrador"),
-      },
-    ],
+    () =>
+      (["residente", "conserje", "administrador"] as const).map((value) => {
+        const translationKey = normalizeRoleTranslationKey(value);
+
+        return {
+          value,
+          label: t(`common.roleLabel.${translationKey}`),
+          description: t(`auth.roleDescription.${translationKey}`),
+        };
+      }),
     [t]
   );
 
@@ -559,16 +567,16 @@ const Login = () => {
                         type="button"
                         onClick={() => handleRoleChange(option.value)}
                         disabled={isAuthenticating}
-                        className={`rounded-2xl border px-4 py-4 text-left transition ${
+                        className={`overflow-hidden rounded-2xl border px-4 py-4 text-left transition ${
                           isSelected
                             ? "border-emerald-400 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(52,211,153,0.2)]"
                             : "border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/8"
                         }`}
                       >
-                        <p className="text-sm font-semibold text-white">
+                        <p className="break-words text-sm font-semibold text-white">
                           {option.label}
                         </p>
-                        <p className="mt-1 text-sm leading-5 text-white/65">
+                        <p className="mt-1 break-words text-sm leading-5 text-white/65">
                           {option.description}
                         </p>
                       </button>
@@ -725,7 +733,9 @@ const Login = () => {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-sm text-white/70">
                   {t("auth.otpSummary", {
-                    role: t(`common.roleLabel.${formData.role}`),
+                    role: t(
+                      `common.roleLabel.${normalizeRoleTranslationKey(formData.role)}`
+                    ),
                     identifier: formData.identifier,
                   })}
                 </p>
