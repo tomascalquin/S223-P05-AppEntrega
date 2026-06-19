@@ -1,0 +1,317 @@
+const es = {
+  common: {
+    appName: 'EncomBox',
+    locale: {
+      es: 'Español',
+      en: 'English',
+    },
+    language: 'Idioma',
+    openMenu: 'Abrir navegación',
+    closeMenu: 'Cerrar navegación',
+    logout: 'Volver al login',
+    loading: 'Cargando...',
+    retry: 'Reintentar',
+    refresh: 'Actualizar',
+    save: 'Guardar cambios',
+    cancel: 'Cancelar',
+    role: {
+      residente: 'residente',
+      conserje: 'conserje',
+      administrador: 'administrador',
+    },
+    roleLabel: {
+      residente: 'Residente',
+      conserje: 'Conserje',
+      administrador: 'Administrador',
+      resident: 'Residente',
+      concierge: 'Conserje',
+      administrator: 'Administrador',
+    },
+  },
+  nav: {
+    registerPackage: 'Registrar encomienda',
+    history: 'Historial',
+    packageHistory: 'Historial de encomiendas',
+    myPackages: 'Mis encomiendas',
+    home: 'Inicio',
+    notifications: 'Notificaciones',
+    userManagement: 'Gestión de usuarios',
+    authorizedEmails: 'Correos autorizados',
+    auditLogs: 'Registro de auditoría',
+  },
+  auth: {
+    mode: {
+      login: 'Iniciar sesión',
+      register: 'Registrarse',
+    },
+    title: {
+      login: 'Iniciar sesión',
+      register: 'Crear cuenta',
+      otp: 'Verificar código OTP',
+    },
+    description: {
+      login: 'Ingresa con tu email o usuario y tu contraseña.',
+      register: 'Completa tus datos para registrarte y entrar de inmediato.',
+      otp: 'Ingresa el código temporal enviado para completar el acceso de {{identifier}}.',
+    },
+    selectRole: 'Entrar como',
+    loginButton: 'Entrar como {{role}}',
+    registerButton: 'Registrarme como {{role}}',
+    verifyOtpButton: 'Validar código OTP',
+    googleDivider: 'o continúa con',
+    googleLoading: 'Cargando acceso con Google...',
+    loadingLogin: 'Validando acceso de {{role}} y preparando tu dashboard...',
+    loadingRegister: 'Creando cuenta de {{role}} y preparando tu dashboard...',
+    loadingOtp: 'Validando el segundo factor de autenticación...',
+    success: {
+      login: 'Acceso concedido. Redirigiendo al {{destination}}.',
+      register: 'Cuenta creada correctamente. Redirigiendo al {{destination}}.',
+      otp: 'OTP validado correctamente. Redirigiendo al {{destination}}.',
+      google: 'Sesión iniciada con Google. Redirigiendo al {{destination}}.',
+      otpSent: 'Se generó un OTP temporal. Ingresa el código para continuar.',
+      otpSentWithPreview: 'Se generó un OTP temporal. Para pruebas locales, usa el código {{code}}.',
+    },
+    roleDescription: {
+      residente: 'Revisa el estado y retiro de tus encomiendas.',
+      conserje: 'Administra ingresos e historial de encomiendas.',
+      resident: 'Revisa el estado y retiro de tus encomiendas.',
+      concierge: 'Administra ingresos e historial de encomiendas.',
+      administrator: 'Gestiona usuarios, roles y configuración del sistema.',
+    },
+    field: {
+      name: 'Nombre completo',
+      email: 'Email',
+      username: 'Nombre de usuario',
+      identifier: 'Email o usuario',
+      password: 'Contraseña',
+      confirmPassword: 'Confirmar contraseña',
+      otpCode: 'Código OTP',
+    },
+    placeholder: {
+      name: 'Ej: Martina Soto',
+      email: 'Ej: usuario@encombox.cl',
+      username: 'Crea tu usuario',
+      identifier: {
+        residente: 'Ej: residente o residente@encombox.cl',
+        conserje: 'Ej: conserje o conserje@encombox.cl',
+        administrador: 'Ej: admin o admin@encombox.cl',
+      },
+      password: {
+        login: 'Ingresa tu contraseña',
+        register: 'Crea una contraseña segura',
+      },
+      confirmPassword: 'Repite tu contraseña',
+      otpCode: 'Ingresa los 6 dígitos',
+    },
+    validation: {
+      identifier: {
+        required: 'Ingresa tu email institucional o tu usuario.',
+        invalidEmail: 'El formato del email no es válido.',
+      },
+      password: {
+        required: 'Ingresa tu contraseña para continuar.',
+        min: 'La contraseña debe tener al menos 8 caracteres.',
+        create: 'Crea una contraseña para tu cuenta.',
+      },
+      name: {
+        required: 'Ingresa tu nombre completo.',
+        min: 'Ingresa un nombre más completo.',
+      },
+      email: {
+        required: 'Ingresa tu email.',
+        invalid: 'El formato del email no es válido.',
+      },
+      username: {
+        required: 'Crea un nombre de usuario.',
+        invalid: 'Usa entre 4 y 20 caracteres sin espacios.',
+      },
+      confirmPassword: {
+        required: 'Confirma tu contraseña.',
+        match: 'Las contraseñas no coinciden.',
+      },
+      otpCode: {
+        invalid: 'Ingresa un código OTP de 6 dígitos.',
+      },
+    },
+    status: {
+      loggingIn: 'Ingresando...',
+      registering: 'Registrando...',
+      verifyingOtp: 'Validando OTP...',
+    },
+    destination: {
+      residente: 'panel del residente',
+      conserje: 'panel de conserjería',
+      administrador: 'panel de administración',
+    },
+    otpSummary: 'Segundo factor para {{role}} con identificador {{identifier}}.',
+    otpExpiresAt: 'El código expira a las {{expiresAt}}.',
+    errors: {
+      networkLogin: 'No pudimos conectar con el servicio de autenticación. Revisa tu red e intenta otra vez.',
+      networkRegister: 'No pudimos conectar con el servicio de registro. Revisa tu red e intenta otra vez.',
+      networkOtp: 'No pudimos validar el OTP. Revisa tu conexión e intenta nuevamente.',
+      invalidCredentials: 'Usuario, email o contraseña incorrectos. Verifica los datos e intenta nuevamente.',
+      invalidOtp: 'El código OTP es incorrecto. Verifica los 6 dígitos e intenta nuevamente.',
+      otpExpired: 'El OTP expiró. Debes volver a iniciar sesión para generar uno nuevo.',
+      invalidResponse: 'El servicio de autenticación respondió con un formato inválido.',
+      userAlreadyExists: 'Ya existe una cuenta con ese email o nombre de usuario.',
+      googleLogin: 'No se pudo completar el acceso con Google. Intenta nuevamente.',
+      generic: 'No se pudo completar la autenticación. Intenta nuevamente en unos segundos.',
+    },
+  },
+  layout: {
+    navigation: 'Navegación',
+    menu: 'Menú',
+  },
+  historial: {
+    title: 'Historial de encomiendas',
+    description: 'Revisa todas las encomiendas registradas y su estado actual.',
+    description_conserje: 'Revisa todas las encomiendas registradas y actualiza su estado cuando el residente la retire.',
+    description_residente: 'Revisa solo tus encomiendas registradas y el estado en que se encuentran.',
+    filter: {
+      mine: 'Mostrando encomiendas asociadas a {{recipient}}.',
+    },
+    recentSuccess: 'Se agregó correctamente la encomienda de {{recipient}} y ya se encuentra en el historial.',
+    recentRecipientFallback: 'este residente',
+    loading: 'Cargando encomiendas...',
+    error: {
+      load: 'No se pudo cargar el historial.',
+      network: 'Error al conectar con el servidor.',
+    },
+    empty: 'Aún no hay encomiendas registradas.',
+    empty_residente: 'Todavía no hay encomiendas registradas a tu nombre.',
+    table: {
+      resident: 'Residente',
+      apartment: 'Depto',
+      sender: 'Remitente',
+      deliveryDate: 'Fecha entrega',
+      createdAt: 'Registrada',
+      status: 'Estado',
+      actions: 'Acciones',
+    },
+    date: {
+      none: 'Sin fecha',
+      invalid: 'Fecha no válida',
+    },
+    status: {
+      received: 'Recibida',
+      delivered: 'Entregada',
+      pending: 'Pendiente',
+    },
+    action: {
+      markDelivered: 'Marcar como entregada',
+      edit: 'Editar',
+      editing: 'Editando',
+      updating: 'Actualizando...',
+      alreadyDelivered: 'Ya entregada',
+    },
+    statusUpdate: {
+      success: 'La encomienda de {{recipient}} fue marcada como entregada.',
+      error: 'No se pudo actualizar el estado de la encomienda.',
+    },
+    edit: {
+      title: 'Editar encomienda',
+      description: 'Corrige los datos registrados y guarda los cambios en el backend.',
+      field: {
+        description: 'Observaciones',
+      },
+      saving: 'Guardando...',
+      success: 'La encomienda de {{recipient}} fue actualizada correctamente.',
+      error: 'No se pudo guardar la edición.',
+      validation: {
+        recipient: {
+          required: 'El nombre del residente es obligatorio.',
+        },
+        apartment: {
+          required: 'El departamento es obligatorio.',
+          invalid: 'Usa un formato válido, por ejemplo 101 o A-12.',
+        },
+        sender: {
+          required: 'El remitente es obligatorio.',
+        },
+        deliveryDate: {
+          future: 'La fecha no puede ser posterior al día actual.',
+        },
+        status: {
+          required: 'Selecciona un estado para la encomienda.',
+        },
+        general: 'Corrige los campos marcados antes de guardar la edición.',
+      },
+    },
+  },
+  conserje: {
+    title: 'Registrar encomienda',
+    field: {
+      recipient: 'Nombre residente *',
+      apartment: 'Departamento *',
+      sender: 'Remitente *',
+      deliveryDate: 'Fecha de entrega *',
+      urgency: 'Urgencia',
+    },
+    placeholder: {
+      recipient: 'Ej: Camila Soto',
+      apartment: 'Ej: 101 o A-12',
+      sender: 'Ej: Mercado Libre',
+    },
+    maxDate: 'Fecha máxima permitida: {{date}}',
+    urgency: {
+      normal: 'No urgente',
+      urgent: 'Urgente',
+      normalHelp: 'Se registrará como no urgente en esta pantalla.',
+      urgentHelp: 'Se marcará visualmente como urgente en esta pantalla.',
+    },
+    validation: {
+      recipient: {
+        required: 'El nombre del residente es obligatorio.',
+      },
+      apartment: {
+        required: 'El departamento es obligatorio.',
+        invalid: 'Usa un formato válido, por ejemplo 101 o A-12.',
+      },
+      sender: {
+        required: 'El remitente es obligatorio.',
+      },
+      deliveryDate: {
+        required: 'La fecha es obligatoria.',
+        future: 'La fecha no puede ser posterior al día actual.',
+      },
+      general: 'Corrige los campos marcados antes de continuar.',
+    },
+    error: {
+      submit: 'Error al registrar la encomienda.',
+      network: 'Error al conectar con el servidor.',
+    },
+    success: 'Encomienda registrada correctamente como {{urgency}}.',
+    success_urgency: {
+      urgent: 'urgente',
+      normal: 'no urgente',
+    },
+    submit: 'Registrar encomienda',
+    submitting: 'Registrando...',
+  },
+  residente: {
+    title: 'Mis encomiendas',
+    description: 'Consulta tus encomiendas recientes y revisa rápidamente su estado.',
+    filter: {
+      mine: 'Tablero filtrado para {{recipient}}.',
+    },
+    loading: 'Cargando tus encomiendas...',
+    error: {
+      load: 'No se pudieron cargar tus encomiendas.',
+    },
+    stats: {
+      received: 'Recibidas',
+      pending: 'Pendientes',
+      delivered: 'Entregadas',
+    },
+    section: {
+      recent: 'Últimas encomiendas',
+    },
+    empty: 'Todavía no tienes encomiendas recientes.',
+    item: {
+      one: 'Encomienda 1 - Entregada',
+      two: 'Encomienda 2 - Pendiente',
+    },
+  },
+}
+
+export default es

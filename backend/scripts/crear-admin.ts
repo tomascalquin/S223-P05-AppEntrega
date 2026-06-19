@@ -65,6 +65,28 @@ const run = async () => {
     process.exit(1);
   }
 
+  // Agregar 'administrador' al ENUM de role si no existe aún
+  const [roleColInfo] = await db.query<RowDataPacket[]>(
+    "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'"
+  );
+  if (roleColInfo.length > 0 && !String(roleColInfo[0].COLUMN_TYPE).includes("administrador")) {
+    await db.query(
+      "ALTER TABLE users MODIFY COLUMN role ENUM('conserje','residente','administrador') NOT NULL DEFAULT 'residente'"
+    );
+    console.log("ENUM 'role' actualizado para incluir 'administrador'.\n");
+  }
+
+  // Agregar columna estado si la tabla existe pero aún no la tiene (migración pendiente)
+  const [estadoCol] = await db.query<RowDataPacket[]>(
+    "SHOW COLUMNS FROM users LIKE 'estado'"
+  );
+  if (estadoCol.length === 0) {
+    await db.query(
+      "ALTER TABLE users ADD COLUMN estado ENUM('activo','inactivo','bloqueado') NOT NULL DEFAULT 'activo'"
+    );
+    console.log("Columna 'estado' agregada a la tabla 'users'.\n");
+  }
+
   const hashedPassword = await bcrypt.hash(contrasena, 12);
 
   const [result] = await db.query<ResultSetHeader>(
