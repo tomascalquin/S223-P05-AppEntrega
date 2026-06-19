@@ -1,14 +1,23 @@
 import { useAuth } from "../context/AuthContext";
+import { useI18n } from "../context/I18nContext";
 import type { Role } from "../context/AuthContext";
 
 const Sidebar = () => {
   const { user } = useAuth();
+  const { t } = useI18n();
 
   if (!user) return null;
 
-  const menu: Record<Role, string[]> = {
-    conserje: ["Inicio", "Registrar Encomienda", "Historial"],
-    residente: ["Mis Encomiendas", "Notificaciones"],
+  const menu: Record<Role, { key: string; label: string }[]> = {
+    conserje: [
+      { key: "nav.home", label: t("nav.home") },
+      { key: "nav.registerPackage", label: t("nav.registerPackage") },
+      { key: "nav.history", label: t("nav.history") },
+    ],
+    residente: [
+      { key: "nav.myPackages", label: t("nav.myPackages") },
+      { key: "nav.notifications", label: t("nav.notifications") },
+    ],
   };
 
   return (
@@ -16,10 +25,10 @@ const Sidebar = () => {
       <ul className="flex flex-col gap-3">
         {menu[user.role].map((item) => (
           <li
-            key={item}
+            key={item.key}
             className="cursor-pointer rounded p-2 hover:bg-gray-200"
           >
-            {item}
+            {item.label}
           </li>
         ))}
       </ul>
