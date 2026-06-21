@@ -1,4 +1,12 @@
-import type { BaseTranslation, Locale } from './i18n'
+import {
+  DEFAULT_LOCALE,
+  getNestedValue,
+  interpolateString,
+  type BaseTranslation,
+  type Locale,
+  type TranslationKey,
+  type TranslationParams,
+} from './i18n'
 import es from '../i18n/locales/es'
 import en from '../i18n/locales/en'
 
@@ -23,4 +31,18 @@ export const getTranslations = (locale: Locale): BaseTranslation => {
  */
 export const getAllTranslations = (): TranslationsMap => {
   return translations
+}
+
+// # Todas las traducciones, incluso las usadas fuera de React, pasan por esta ruta tipada.
+export const translate = (
+  locale: Locale,
+  key: TranslationKey,
+  params?: TranslationParams
+): string => {
+  const template =
+    getNestedValue(getTranslations(locale), key) ??
+    getNestedValue(getTranslations(DEFAULT_LOCALE), key) ??
+    key
+
+  return interpolateString(template, params)
 }

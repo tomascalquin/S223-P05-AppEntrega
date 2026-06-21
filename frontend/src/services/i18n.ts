@@ -3,6 +3,19 @@ import type es from '../i18n/locales/es'
 export type Locale = 'es' | 'en'
 export type BaseTranslation = typeof es
 
+// # La unión se deriva del catálogo base: una clave inexistente ahora falla en compilación.
+type NestedTranslationKey<T> = {
+  [Key in keyof T & string]: T[Key] extends string
+    ? Key
+    : T[Key] extends Record<string, unknown>
+      ? `${Key}.${NestedTranslationKey<T[Key]>}`
+      : never
+}[keyof T & string]
+
+export type TranslationKey = NestedTranslationKey<BaseTranslation>
+export type TranslationParams = Record<string, string | number>
+export type Translate = (key: TranslationKey, params?: TranslationParams) => string
+
 export const DEFAULT_LOCALE: Locale = 'es'
 export const LOCALE_STORAGE_KEY = 'encombox.locale'
 
@@ -29,15 +42,15 @@ export const getLocaleTag = (locale: Locale) => {
  * Por ejemplo: 'common.appName' obtiene obj.common.appName
  */
 export const getNestedValue = (
-  obj: Record<string, any>,
-  path: string
+  obj: BaseTranslation,
+  path: TranslationKey
 ): string | undefined => {
   const keys = path.split('.')
-  let result: any = obj
+  let result: unknown = obj
 
   for (const key of keys) {
-    if (result && typeof result === 'object' && key in result) {
-      result = result[key]
+    if (result !== null && typeof result === 'object' && key in result) {
+      result = (result as Record<string, unknown>)[key]
     } else {
       return undefined
     }
@@ -51,7 +64,7 @@ export const getNestedValue = (
  */
 export const interpolateString = (
   template: string,
-  params?: Record<string, string | number>
+  params?: TranslationParams
 ): string => {
   if (!params) return template
 
@@ -66,10 +79,10 @@ export const interpolateString = (
  * con soporte para parámetros interpolados
  */
 export const translateKey = (
-  translations: Record<Locale, Record<string, any>>,
+  translations: Record<Locale, BaseTranslation>,
   locale: Locale,
-  key: string,
-  params?: Record<string, string | number>
+  key: TranslationKey,
+  params?: TranslationParams
 ): string => {
   const template =
     getNestedValue(translations[locale], key) ||

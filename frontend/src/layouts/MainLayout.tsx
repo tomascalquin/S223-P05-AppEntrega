@@ -4,7 +4,10 @@ import { NavLink } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
+import type { Role } from "../services/auth";
+import type { TranslationKey } from "../services/i18n";
 
+// # `satisfies` valida las claves sin ensancharlas a string.
 const navigationByRole = {
   conserje: [
     { labelKey: "nav.registerPackage", to: "/conserje" },
@@ -19,7 +22,7 @@ const navigationByRole = {
     { labelKey: "nav.authorizedEmails", to: "/admin/correos" },
     { labelKey: "nav.auditLogs", to: "/admin/logs" },
   ],
-};
+} satisfies Record<Role, { labelKey: TranslationKey; to: string }[]>;
 
 const MainLayout = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();

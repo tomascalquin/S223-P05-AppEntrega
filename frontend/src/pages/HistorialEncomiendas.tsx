@@ -408,9 +408,10 @@ const HistorialEncomiendas = () => {
   };
 
   const isResidentView = user?.role === "residente";
+  // # Estas claves conservan la estructura histórica del catálogo unificado.
   const descriptionText = isResidentView
-    ? t("historial.description.residente")
-    : t("historial.description.conserje");
+    ? t("historial.description_residente")
+    : t("historial.description_conserje");
 
   return (
     <section className="flex min-w-0 flex-col gap-6">
@@ -676,7 +677,7 @@ const HistorialEncomiendas = () => {
       {/* # Estado vacío según el rol actual. */}
       {!isLoading && !errorMessage && packages.length === 0 && (
         <div className="rounded-xl border border-white/10 bg-[#2a2a2a] p-5 text-sm text-gray-300">
-          {isResidentView ? t("historial.empty.residente") : t("historial.empty")}
+          {isResidentView ? t("historial.empty_residente") : t("historial.empty")}
         </div>
       )}
 

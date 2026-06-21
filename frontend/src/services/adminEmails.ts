@@ -12,7 +12,8 @@ export type AuthorizedEmail = {
 const BASE_URL = (import.meta.env.VITE_AUTH_API_URL as string | undefined)
   ?.replace("/api/auth", "/api/admin") ?? "/api/admin";
 
-const getAuthHeader = () => {
+// # El retorno explícito evita que TypeScript infiera Authorization como string | undefined.
+const getAuthHeader = (): Record<string, string> => {
   const raw = localStorage.getItem("encombox.auth.session");
   if (!raw) return {};
   try {

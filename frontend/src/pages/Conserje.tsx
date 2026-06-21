@@ -216,8 +216,8 @@ const Conserje = () => {
         t("conserje.success", {
           urgency: t(
             normalizedData.urgency === "urgent"
-              ? "conserje.success.urgent"
-              : "conserje.success.normal"
+              ? "conserje.success_urgency.urgent"
+              : "conserje.success_urgency.normal"
           ),
         })
       );

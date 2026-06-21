@@ -9,25 +9,14 @@ import {
   type UserEstado,
 } from "../services/admin";
 import type { Role } from "../services/auth";
+import { useI18n } from "../context/I18nContext";
 
 const ALL_ROLES: Role[] = ["residente", "conserje", "administrador"];
-
-const ROLE_LABELS: Record<Role, string> = {
-  residente: "Residente",
-  conserje: "Conserje",
-  administrador: "Administrador",
-};
 
 const ROLE_COLORS: Record<Role, string> = {
   residente: "bg-blue-500/15 text-blue-300 border-blue-500/30",
   conserje: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   administrador: "bg-purple-500/15 text-purple-300 border-purple-500/30",
-};
-
-const ESTADO_LABELS: Record<UserEstado, string> = {
-  activo: "Activo",
-  inactivo: "Inactivo",
-  bloqueado: "Bloqueado",
 };
 
 const ESTADO_COLORS: Record<UserEstado, string> = {
@@ -36,16 +25,21 @@ const ESTADO_COLORS: Record<UserEstado, string> = {
   bloqueado: "bg-red-500/15 text-red-300 border-red-500/30",
 };
 
-type ModalConfirm = {
-  tipo: "rol" | "estado" | "eliminar";
+type ModalBase = {
   userId: string;
   userName: string;
-  valorNuevo?: string;
   mensaje: string;
 };
 
+// # La unión discriminada garantiza que cada confirmación lleve el valor correcto.
+type ModalConfirm =
+  | (ModalBase & { tipo: "rol"; valorNuevo: Role })
+  | (ModalBase & { tipo: "estado"; valorNuevo: UserEstado })
+  | (ModalBase & { tipo: "eliminar" });
+
 const Admin = () => {
   const { user } = useAuth();
+  const { t, formatDate } = useI18n();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -66,8 +60,8 @@ const Admin = () => {
       try {
         const data = await fetchUsers();
         if (!cancelled) setUsers(data);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Error al cargar usuarios");
+      } catch {
+        if (!cancelled) setError(t("admin.error.load"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -75,7 +69,7 @@ const Admin = () => {
 
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [t]);
 
   const handleRoleChange = (userId: string, role: Role) => {
     setPendingRole((prev) => ({ ...prev, [userId]: role }));
@@ -88,23 +82,20 @@ const Admin = () => {
       userId,
       userName,
       valorNuevo: nuevoRol,
-      mensaje: `¿Confirmas cambiar el rol de "${userName}" a "${ROLE_LABELS[nuevoRol]}"?`,
+      mensaje: t("admin.confirmation.role", {
+        name: userName,
+        role: t(`common.roleLabel.${nuevoRol}`),
+      }),
     });
   };
 
   const solicitarConfirmacionEstado = (userId: string, userName: string, nuevoEstado: UserEstado) => {
-    const accion = nuevoEstado === "bloqueado"
-      ? `bloquear la cuenta de "${userName}". No podrá iniciar sesión.`
-      : nuevoEstado === "inactivo"
-      ? `desactivar la cuenta de "${userName}".`
-      : `reactivar la cuenta de "${userName}".`;
-
     setModal({
       tipo: "estado",
       userId,
       userName,
       valorNuevo: nuevoEstado,
-      mensaje: `¿Confirmas ${accion}`,
+      mensaje: t(`admin.confirmation.status.${nuevoEstado}`, { name: userName }),
     });
   };
 
@@ -113,7 +104,7 @@ const Admin = () => {
       tipo: "eliminar",
       userId,
       userName,
-      mensaje: `¿Estás seguro de que deseas eliminar permanentemente la cuenta de "${userName}"? Esta acción no se puede deshacer.`,
+      mensaje: t("admin.confirmation.delete", { name: userName }),
     });
   };
 
@@ -124,8 +115,8 @@ const Admin = () => {
     setError("");
 
     try {
-      if (modal.tipo === "rol" && modal.valorNuevo) {
-        const role = modal.valorNuevo as Role;
+      if (modal.tipo === "rol") {
+        const role = modal.valorNuevo;
         setSaving((prev) => ({ ...prev, [modal.userId]: true }));
         await updateUserRole(modal.userId, role);
         setUsers((prev) =>
@@ -141,8 +132,8 @@ const Admin = () => {
           setSavedFeedback((prev) => ({ ...prev, [modal.userId]: false }));
         }, 2000);
         setSaving((prev) => ({ ...prev, [modal.userId]: false }));
-      } else if (modal.tipo === "estado" && modal.valorNuevo) {
-        const estado = modal.valorNuevo as UserEstado;
+      } else if (modal.tipo === "estado") {
+        const estado = modal.valorNuevo;
         await updateUserEstado(modal.userId, estado);
         setUsers((prev) =>
           prev.map((u) => (u.id === modal.userId ? { ...u, estado } : u))
@@ -153,22 +144,10 @@ const Admin = () => {
       }
 
       setModal(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al realizar la acción");
+    } catch {
+      setError(t("admin.error.action"));
     } finally {
       setConfirmando(false);
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleDateString("es-CL", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-    } catch {
-      return dateStr;
     }
   };
 
@@ -176,10 +155,10 @@ const Admin = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white sm:text-3xl">
-          Panel de Administración
+          {t("admin.title")}
         </h1>
         <p className="mt-2 text-sm text-gray-400">
-          Gestiona usuarios, roles y estados de acceso del sistema.
+          {t("admin.description")}
         </p>
       </div>
 
@@ -192,11 +171,13 @@ const Admin = () => {
       <div className="rounded-2xl border border-white/10 bg-[#2a2a2a]">
         <div className="border-b border-white/10 px-5 py-4">
           <h2 className="text-base font-semibold text-white">
-            Usuarios del sistema
+            {t("admin.section")}
           </h2>
           {!loading && (
             <p className="mt-0.5 text-xs text-gray-400">
-              {users.length} {users.length === 1 ? "usuario registrado" : "usuarios registrados"}
+              {t(users.length === 1 ? "admin.count.one" : "admin.count.many", {
+                count: users.length,
+              })}
             </p>
           )}
         </div>
@@ -204,24 +185,24 @@ const Admin = () => {
         {loading ? (
           <div className="flex items-center gap-3 px-5 py-8 text-sm text-gray-400">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
-            Cargando usuarios...
+            {t("admin.loading")}
           </div>
         ) : users.length === 0 ? (
           <p className="px-5 py-8 text-sm text-gray-400">
-            No hay usuarios registrados.
+            {t("admin.empty")}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="border-b border-white/8 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  <th className="px-5 py-3">Nombre</th>
-                  <th className="px-5 py-3">Email / Usuario</th>
-                  <th className="px-5 py-3">Rol</th>
-                  <th className="px-5 py-3">Cambiar rol</th>
-                  <th className="px-5 py-3">Estado</th>
-                  <th className="px-5 py-3">Acciones</th>
-                  <th className="px-5 py-3">Registrado</th>
+                  <th className="px-5 py-3">{t("admin.table.name")}</th>
+                  <th className="px-5 py-3">{t("admin.table.identity")}</th>
+                  <th className="px-5 py-3">{t("admin.table.role")}</th>
+                  <th className="px-5 py-3">{t("admin.table.changeRole")}</th>
+                  <th className="px-5 py-3">{t("admin.table.status")}</th>
+                  <th className="px-5 py-3">{t("admin.table.actions")}</th>
+                  <th className="px-5 py-3">{t("admin.table.registered")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -241,7 +222,7 @@ const Admin = () => {
                       <td className="px-5 py-3.5">
                         <p className="font-medium text-white">{u.name}</p>
                         {isSelf && (
-                          <p className="mt-0.5 text-xs text-yellow-400/80">Tu cuenta</p>
+                          <p className="mt-0.5 text-xs text-yellow-400/80">{t("admin.self")}</p>
                         )}
                       </td>
                       <td className="px-5 py-3.5 text-gray-300">
@@ -252,12 +233,12 @@ const Admin = () => {
                         <span
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${ROLE_COLORS[currentRole]}`}
                         >
-                          {ROLE_LABELS[currentRole]}
+                          {t(`common.roleLabel.${currentRole}`)}
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
                         {isSelf ? (
-                          <span className="text-xs text-gray-500">No disponible</span>
+                          <span className="text-xs text-gray-500">{t("admin.unavailable")}</span>
                         ) : (
                           <div className="flex items-center gap-2">
                             <select
@@ -270,7 +251,7 @@ const Admin = () => {
                             >
                               {ALL_ROLES.map((r) => (
                                 <option key={r} value={r}>
-                                  {ROLE_LABELS[r]}
+                                  {t(`common.roleLabel.${r}`)}
                                 </option>
                               ))}
                             </select>
@@ -287,16 +268,16 @@ const Admin = () => {
                                 {isSaving ? (
                                   <span className="flex items-center gap-1.5">
                                     <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950" />
-                                    Guardando
+                                    {t("admin.saving")}
                                   </span>
                                 ) : (
-                                  "Guardar"
+                                  t("admin.save")
                                 )}
                               </button>
                             )}
 
                             {justSaved && !isDirty && (
-                              <span className="text-xs text-emerald-400">Guardado</span>
+                              <span className="text-xs text-emerald-400">{t("admin.saved")}</span>
                             )}
                           </div>
                         )}
@@ -305,7 +286,7 @@ const Admin = () => {
                         <span
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${ESTADO_COLORS[u.estado ?? "activo"]}`}
                         >
-                          {ESTADO_LABELS[u.estado ?? "activo"]}
+                          {t(`admin.status.${u.estado ?? "activo"}`)}
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
@@ -321,7 +302,7 @@ const Admin = () => {
                                 }
                                 className="rounded-xl border border-orange-400/30 px-3 py-1 text-xs font-medium text-orange-400 transition hover:bg-orange-400/10"
                               >
-                                Bloquear
+                                {t("admin.action.block")}
                               </button>
                             ) : (
                               <button
@@ -331,7 +312,7 @@ const Admin = () => {
                                 }
                                 className="rounded-xl border border-emerald-400/30 px-3 py-1 text-xs font-medium text-emerald-400 transition hover:bg-emerald-400/10"
                               >
-                                Activar
+                                {t("admin.action.activate")}
                               </button>
                             )}
                             <button
@@ -341,13 +322,17 @@ const Admin = () => {
                               }
                               className="rounded-xl border border-red-400/30 px-3 py-1 text-xs font-medium text-red-400 transition hover:bg-red-400/10"
                             >
-                              Eliminar
+                              {t("admin.action.delete")}
                             </button>
                           </div>
                         )}
                       </td>
                       <td className="px-5 py-3.5 text-xs text-gray-500">
-                        {formatDate(u.created_at)}
+                        {formatDate(u.created_at, {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
                       </td>
                     </tr>
                   );
@@ -363,16 +348,18 @@ const Admin = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#2a2a2a] p-6 shadow-2xl">
             <h3 className="text-base font-semibold text-white">
-              {modal.tipo === "eliminar"
-                ? "Confirmar eliminación"
-                : modal.tipo === "estado"
-                ? "Confirmar cambio de estado"
-                : "Confirmar cambio de rol"}
+              {t(
+                modal.tipo === "eliminar"
+                  ? "admin.confirmation.title.delete"
+                  : modal.tipo === "estado"
+                    ? "admin.confirmation.title.status"
+                    : "admin.confirmation.title.role"
+              )}
             </h3>
 
             {modal.tipo === "eliminar" && (
               <div className="mt-3 rounded-xl border border-red-400/20 bg-red-400/8 px-3 py-2 text-xs text-red-300">
-                Advertencia: esta acción eliminará permanentemente al usuario y no puede revertirse.
+                {t("admin.confirmation.warning")}
               </div>
             )}
 
@@ -385,7 +372,7 @@ const Admin = () => {
                 disabled={confirmando}
                 className="rounded-xl border border-white/10 px-4 py-2 text-sm text-gray-300 transition hover:bg-white/5 disabled:opacity-50"
               >
-                Cancelar
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -400,10 +387,10 @@ const Admin = () => {
                 {confirmando ? (
                   <span className="flex items-center gap-2">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/20 border-t-current" />
-                    Procesando...
+                    {t("admin.confirmation.processing")}
                   </span>
                 ) : (
-                  "Confirmar"
+                  t("admin.confirmation.confirm")
                 )}
               </button>
             </div>

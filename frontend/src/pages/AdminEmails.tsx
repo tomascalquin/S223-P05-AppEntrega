@@ -7,14 +7,9 @@ import {
   type AuthorizedEmail,
 } from "../services/adminEmails";
 import type { Role } from "../services/auth";
+import { useI18n } from "../context/I18nContext";
 
 const ALL_ROLES: Role[] = ["residente", "conserje", "administrador"];
-
-const ROLE_LABELS: Record<Role, string> = {
-  residente: "Residente",
-  conserje: "Conserje",
-  administrador: "Administrador",
-};
 
 const ROLE_COLORS: Record<Role, string> = {
   residente: "bg-blue-500/15 text-blue-300 border-blue-500/30",
@@ -23,6 +18,7 @@ const ROLE_COLORS: Record<Role, string> = {
 };
 
 const AdminEmails = () => {
+  const { t, formatDate } = useI18n();
   const [emails, setEmails] = useState<AuthorizedEmail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -47,8 +43,8 @@ const AdminEmails = () => {
       try {
         const data = await fetchAuthorizedEmails();
         if (!cancelled) setEmails(data);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Error al cargar correos autorizados");
+      } catch {
+        if (!cancelled) setError(t("adminEmails.error.load"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -56,7 +52,7 @@ const AdminEmails = () => {
 
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [t]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,8 +66,8 @@ const AdminEmails = () => {
       setEmails((prev) => [created, ...prev]);
       setNewEmail("");
       emailInputRef.current?.focus();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al agregar correo");
+    } catch {
+      setError(t("adminEmails.error.add"));
     } finally {
       setAdding(false);
     }
@@ -100,8 +96,8 @@ const AdminEmails = () => {
       setTimeout(() => {
         setSavedFeedback((prev) => ({ ...prev, [id]: false }));
       }, 2000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al actualizar rol");
+    } catch {
+      setError(t("adminEmails.error.updateRole"));
     } finally {
       setSaving((prev) => ({ ...prev, [id]: false }));
     }
@@ -113,22 +109,10 @@ const AdminEmails = () => {
     try {
       await deleteAuthorizedEmail(id);
       setEmails((prev) => prev.filter((e) => e.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al eliminar correo");
+    } catch {
+      setError(t("adminEmails.error.delete"));
     } finally {
       setDeleting((prev) => ({ ...prev, [id]: false }));
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleDateString("es-CL", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-    } catch {
-      return dateStr;
     }
   };
 
@@ -136,10 +120,10 @@ const AdminEmails = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white sm:text-3xl">
-          Correos autorizados
+          {t("adminEmails.title")}
         </h1>
         <p className="mt-2 text-sm text-gray-400">
-          Si se define al menos un correo para un rol, solo esos correos podrán iniciar sesión con ese rol.
+          {t("adminEmails.description")}
         </p>
       </div>
 
@@ -151,26 +135,26 @@ const AdminEmails = () => {
 
       <div className="rounded-2xl border border-white/10 bg-[#2a2a2a]">
         <div className="border-b border-white/10 px-5 py-4">
-          <h2 className="text-base font-semibold text-white">Agregar correo autorizado</h2>
+          <h2 className="text-base font-semibold text-white">{t("adminEmails.addSection")}</h2>
         </div>
         <form onSubmit={(e) => void handleAdd(e)} className="flex flex-wrap items-end gap-3 px-5 py-4">
           <div className="flex-1 min-w-[200px]">
             <label className="mb-1.5 block text-xs font-medium text-gray-400">
-              Correo electrónico
+              {t("adminEmails.field.email")}
             </label>
             <input
               ref={emailInputRef}
               type="email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="usuario@ejemplo.cl"
+              placeholder={t("adminEmails.placeholder")}
               required
               disabled={adding}
               className="w-full rounded-xl border border-white/10 bg-[#1f1f1f] px-3 py-2 text-sm text-white outline-none transition placeholder:text-gray-600 focus:border-emerald-400 disabled:opacity-50"
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">Rol</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t("adminEmails.field.role")}</label>
             <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value as Role)}
@@ -178,7 +162,7 @@ const AdminEmails = () => {
               className="rounded-xl border border-white/10 bg-[#1f1f1f] px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400 disabled:opacity-50"
             >
               {ALL_ROLES.map((r) => (
-                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                <option key={r} value={r}>{t(`common.roleLabel.${r}`)}</option>
               ))}
             </select>
           </div>
@@ -190,10 +174,10 @@ const AdminEmails = () => {
             {adding ? (
               <span className="flex items-center gap-1.5">
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950" />
-                Agregando
+                {t("adminEmails.adding")}
               </span>
             ) : (
-              "Agregar"
+              t("adminEmails.add")
             )}
           </button>
         </form>
@@ -201,10 +185,12 @@ const AdminEmails = () => {
 
       <div className="rounded-2xl border border-white/10 bg-[#2a2a2a]">
         <div className="border-b border-white/10 px-5 py-4">
-          <h2 className="text-base font-semibold text-white">Correos autorizados</h2>
+          <h2 className="text-base font-semibold text-white">{t("adminEmails.listSection")}</h2>
           {!loading && (
             <p className="mt-0.5 text-xs text-gray-400">
-              {emails.length} {emails.length === 1 ? "correo registrado" : "correos registrados"}
+              {t(emails.length === 1 ? "adminEmails.count.one" : "adminEmails.count.many", {
+                count: emails.length,
+              })}
             </p>
           )}
         </div>
@@ -212,22 +198,22 @@ const AdminEmails = () => {
         {loading ? (
           <div className="flex items-center gap-3 px-5 py-8 text-sm text-gray-400">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
-            Cargando correos...
+            {t("adminEmails.loading")}
           </div>
         ) : emails.length === 0 ? (
           <p className="px-5 py-8 text-sm text-gray-400">
-            No hay correos autorizados. Todos los usuarios pueden ingresar a cualquier rol.
+            {t("adminEmails.empty")}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="border-b border-white/8 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  <th className="px-5 py-3">Correo</th>
-                  <th className="px-5 py-3">Rol actual</th>
-                  <th className="px-5 py-3">Cambiar rol</th>
-                  <th className="px-5 py-3">Registrado</th>
-                  <th className="px-5 py-3">Eliminar</th>
+                  <th className="px-5 py-3">{t("adminEmails.table.email")}</th>
+                  <th className="px-5 py-3">{t("adminEmails.table.currentRole")}</th>
+                  <th className="px-5 py-3">{t("adminEmails.table.changeRole")}</th>
+                  <th className="px-5 py-3">{t("adminEmails.table.registered")}</th>
+                  <th className="px-5 py-3">{t("adminEmails.table.delete")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -245,7 +231,7 @@ const AdminEmails = () => {
                         {entry.email}
                         {entry.created_by_name && (
                           <p className="mt-0.5 text-xs text-gray-500">
-                            por {entry.created_by_name}
+                            {t("adminEmails.createdBy", { name: entry.created_by_name })}
                           </p>
                         )}
                       </td>
@@ -253,7 +239,7 @@ const AdminEmails = () => {
                         <span
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${ROLE_COLORS[currentRole]}`}
                         >
-                          {ROLE_LABELS[currentRole]}
+                          {t(`common.roleLabel.${currentRole}`)}
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
@@ -265,7 +251,7 @@ const AdminEmails = () => {
                             className="rounded-xl border border-white/10 bg-[#1f1f1f] px-3 py-1.5 text-sm text-white outline-none transition focus:border-emerald-400 disabled:opacity-50"
                           >
                             {ALL_ROLES.map((r) => (
-                              <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                              <option key={r} value={r}>{t(`common.roleLabel.${r}`)}</option>
                             ))}
                           </select>
 
@@ -279,21 +265,25 @@ const AdminEmails = () => {
                               {isSaving ? (
                                 <span className="flex items-center gap-1.5">
                                   <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950" />
-                                  Guardando
+                                  {t("adminEmails.saving")}
                                 </span>
                               ) : (
-                                "Guardar"
+                                t("adminEmails.save")
                               )}
                             </button>
                           )}
 
                           {justSaved && !isDirty && (
-                            <span className="text-xs text-emerald-400">Guardado</span>
+                            <span className="text-xs text-emerald-400">{t("adminEmails.saved")}</span>
                           )}
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-xs text-gray-500">
-                        {formatDate(entry.created_at)}
+                        {formatDate(entry.created_at, {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
                       </td>
                       <td className="px-5 py-3.5">
                         <button
@@ -305,10 +295,10 @@ const AdminEmails = () => {
                           {isDeleting ? (
                             <span className="flex items-center gap-1.5">
                               <span className="h-3 w-3 animate-spin rounded-full border-2 border-red-400/20 border-t-red-400" />
-                              Eliminando
+                              {t("adminEmails.deleting")}
                             </span>
                           ) : (
-                            "Eliminar"
+                            t("adminEmails.delete")
                           )}
                         </button>
                       </td>
