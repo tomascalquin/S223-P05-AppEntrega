@@ -1,4 +1,5 @@
 import type { Role } from "./auth";
+import { getStoredAccessToken } from "./auth";
 
 export type AuthorizedEmail = {
   id: string;
@@ -12,15 +13,10 @@ export type AuthorizedEmail = {
 const BASE_URL = (import.meta.env.VITE_AUTH_API_URL as string | undefined)
   ?.replace("/api/auth", "/api/admin") ?? "/api/admin";
 
-const getAuthHeader = () => {
-  const raw = localStorage.getItem("encombox.auth.session");
-  if (!raw) return {};
-  try {
-    const session = JSON.parse(raw) as { token?: string };
-    return session.token ? { Authorization: `Bearer ${session.token}` } : {};
-  } catch {
-    return {};
-  }
+// Reutilizamos el lector validado de sesión y devolvemos un HeadersInit homogéneo.
+const getAuthHeader = (): Record<string, string> => {
+  const token = getStoredAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 export const fetchAuthorizedEmails = async (): Promise<AuthorizedEmail[]> => {

@@ -1,3 +1,6 @@
+import type { BaseTranslation } from '../i18n-types'
+
+// El locale base define el contrato que typesafe-i18n usa para generar todas las claves tipadas.
 const es = {
   common: {
     appName: 'EncomBox',
@@ -52,24 +55,24 @@ const es = {
     description: {
       login: 'Ingresa con tu email o usuario y tu contraseña.',
       register: 'Completa tus datos para registrarte y entrar de inmediato.',
-      otp: 'Ingresa el código temporal enviado para completar el acceso de {{identifier}}.',
+      otp: 'Ingresa el código temporal enviado para completar el acceso de {identifier}.',
     },
     selectRole: 'Entrar como',
-    loginButton: 'Entrar como {{role}}',
-    registerButton: 'Registrarme como {{role}}',
+    loginButton: 'Entrar como {role}',
+    registerButton: 'Registrarme como {role}',
     verifyOtpButton: 'Validar código OTP',
     googleDivider: 'o continúa con',
     googleLoading: 'Cargando acceso con Google...',
-    loadingLogin: 'Validando acceso de {{role}} y preparando tu dashboard...',
-    loadingRegister: 'Creando cuenta de {{role}} y preparando tu dashboard...',
+    loadingLogin: 'Validando acceso de {role} y preparando tu dashboard...',
+    loadingRegister: 'Creando cuenta de {role} y preparando tu dashboard...',
     loadingOtp: 'Validando el segundo factor de autenticación...',
     success: {
-      login: 'Acceso concedido. Redirigiendo al {{destination}}.',
-      register: 'Cuenta creada correctamente. Redirigiendo al {{destination}}.',
-      otp: 'OTP validado correctamente. Redirigiendo al {{destination}}.',
-      google: 'Sesión iniciada con Google. Redirigiendo al {{destination}}.',
+      login: 'Acceso concedido. Redirigiendo al {destination}.',
+      register: 'Cuenta creada correctamente. Redirigiendo al {destination}.',
+      otp: 'OTP validado correctamente. Redirigiendo al {destination}.',
+      google: 'Sesión iniciada con Google. Redirigiendo al {destination}.',
       otpSent: 'Se generó un OTP temporal. Ingresa el código para continuar.',
-      otpSentWithPreview: 'Se generó un OTP temporal. Para pruebas locales, usa el código {{code}}.',
+      otpSentWithPreview: 'Se generó un OTP temporal. Para pruebas locales, usa el código {code}.',
     },
     roleDescription: {
       residente: 'Revisa el estado y retiro de tus encomiendas.',
@@ -143,8 +146,8 @@ const es = {
       conserje: 'panel de conserjería',
       administrador: 'panel de administración',
     },
-    otpSummary: 'Segundo factor para {{role}} con identificador {{identifier}}.',
-    otpExpiresAt: 'El código expira a las {{expiresAt}}.',
+    otpSummary: 'Segundo factor para {role} con identificador {identifier}.',
+    otpExpiresAt: 'El código expira a las {expiresAt}.',
     errors: {
       networkLogin: 'No pudimos conectar con el servicio de autenticación. Revisa tu red e intenta otra vez.',
       networkRegister: 'No pudimos conectar con el servicio de registro. Revisa tu red e intenta otra vez.',
@@ -168,9 +171,9 @@ const es = {
     description_conserje: 'Revisa todas las encomiendas registradas y actualiza su estado cuando el residente la retire.',
     description_residente: 'Revisa solo tus encomiendas registradas y el estado en que se encuentran.',
     filter: {
-      mine: 'Mostrando encomiendas asociadas a {{recipient}}.',
+      mine: 'Mostrando encomiendas asociadas a {recipient}.',
     },
-    recentSuccess: 'Se agregó correctamente la encomienda de {{recipient}} y ya se encuentra en el historial.',
+    recentSuccess: 'Se agregó correctamente la encomienda de {recipient} y ya se encuentra en el historial.',
     recentRecipientFallback: 'este residente',
     loading: 'Cargando encomiendas...',
     error: {
@@ -205,7 +208,7 @@ const es = {
       alreadyDelivered: 'Ya entregada',
     },
     statusUpdate: {
-      success: 'La encomienda de {{recipient}} fue marcada como entregada.',
+      success: 'La encomienda de {recipient} fue marcada como entregada.',
       error: 'No se pudo actualizar el estado de la encomienda.',
     },
     edit: {
@@ -215,7 +218,7 @@ const es = {
         description: 'Observaciones',
       },
       saving: 'Guardando...',
-      success: 'La encomienda de {{recipient}} fue actualizada correctamente.',
+      success: 'La encomienda de {recipient} fue actualizada correctamente.',
       error: 'No se pudo guardar la edición.',
       validation: {
         recipient: {
@@ -252,7 +255,7 @@ const es = {
       apartment: 'Ej: 101 o A-12',
       sender: 'Ej: Mercado Libre',
     },
-    maxDate: 'Fecha máxima permitida: {{date}}',
+    maxDate: 'Fecha máxima permitida: {date}',
     urgency: {
       normal: 'No urgente',
       urgent: 'Urgente',
@@ -280,7 +283,7 @@ const es = {
       submit: 'Error al registrar la encomienda.',
       network: 'Error al conectar con el servidor.',
     },
-    success: 'Encomienda registrada correctamente como {{urgency}}.',
+    success: 'Encomienda registrada correctamente como {urgency}.',
     success_urgency: {
       urgent: 'urgente',
       normal: 'no urgente',
@@ -292,7 +295,7 @@ const es = {
     title: 'Mis encomiendas',
     description: 'Consulta tus encomiendas recientes y revisa rápidamente su estado.',
     filter: {
-      mine: 'Tablero filtrado para {{recipient}}.',
+      mine: 'Tablero filtrado para {recipient}.',
     },
     loading: 'Cargando tus encomiendas...',
     error: {
@@ -312,6 +315,6 @@ const es = {
       two: 'Encomienda 2 - Pendiente',
     },
   },
-}
+} satisfies BaseTranslation
 
 export default es

@@ -4,8 +4,13 @@ import { NavLink } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
+import type { TranslationKey } from "../i18n";
 
-const navigationByRole = {
+// Tipar las etiquetas aquí hace que una ruta de traducción inválida falle durante el build.
+const navigationByRole: Record<
+  "conserje" | "residente" | "administrador",
+  { labelKey: TranslationKey; to: string }[]
+> = {
   conserje: [
     { labelKey: "nav.registerPackage", to: "/conserje" },
     { labelKey: "nav.history", to: "/conserje/historial" },

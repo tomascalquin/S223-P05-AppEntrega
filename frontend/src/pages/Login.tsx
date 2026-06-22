@@ -194,6 +194,22 @@ const Login = () => {
     return Object.values(errors).some((error) => error !== "");
   };
 
+  // Declaramos estos helpers antes del Effect Event para que React Compiler pueda seguir sus capturas.
+  const resetFeedback = () => {
+    setSuccessMessage("");
+
+    if (authError) {
+      clearAuthError();
+    }
+  };
+
+  const handleSuccessfulAuth = (role: Role, message: string) => {
+    setSuccessMessage(message);
+    redirectTimeoutRef.current = window.setTimeout(() => {
+      navigate(getHomePathForRole(role), { replace: true });
+    }, 800);
+  };
+
   const handleGoogleCredential = useEffectEvent(async (credential: string) => {
     resetFeedback();
 
@@ -232,7 +248,6 @@ const Login = () => {
       return;
     }
 
-    setIsGoogleReady(false);
     let isCancelled = false;
     const scriptId = "google-identity-services";
 
@@ -329,21 +344,15 @@ const Login = () => {
       const scriptNode = document.getElementById(scriptId);
       scriptNode?.removeEventListener("load", onScriptLoad);
     };
-  }, [authStep, googleClientId, handleGoogleCredential, mode, formData.role]);
-
-  const resetFeedback = () => {
-    setSuccessMessage("");
-
-    if (authError) {
-      clearAuthError();
-    }
-  };
+  }, [authStep, googleClientId, mode, formData.role]);
 
   const handleModeChange = (nextMode: AuthMode) => {
     // # Al cambiar entre login y registro limpiamos errores previos para no mezclar mensajes de distintos flujos.
     setMode(nextMode);
     setAuthStep("credentials");
     setPendingOtpChallenge(null);
+    // El cambio de modo exige que Google vuelva a confirmar cuándo su botón está listo.
+    setIsGoogleReady(false);
     setFieldErrors(initialFieldErrors);
     setFormData((current) => ({
       ...current,
@@ -361,6 +370,7 @@ const Login = () => {
 
     setAuthStep("credentials");
     setPendingOtpChallenge(null);
+    setIsGoogleReady(false);
     resetFeedback();
   };
 
@@ -385,14 +395,6 @@ const Login = () => {
     }
 
     resetFeedback();
-  };
-
-  const handleSuccessfulAuth = (role: Role, message: string) => {
-    // # Dejamos visible una confirmación corta antes de redirigir al dashboard del rol autenticado.
-    setSuccessMessage(message);
-    redirectTimeoutRef.current = window.setTimeout(() => {
-      navigate(getHomePathForRole(role), { replace: true });
-    }, 800);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

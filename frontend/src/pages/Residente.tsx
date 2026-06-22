@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import DashboardStats from "../components/DashboardStats";
 import RecentPackages from "../components/RecentPackages";
 import { useAuth } from "../context/AuthContext";
@@ -21,7 +21,8 @@ const Residente = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const loadPackages = useEffectEvent(async () => {
+  // useCallback permite reutilizar la carga desde el efecto inicial y desde el botón de recarga.
+  const loadPackages = useCallback(async () => {
     if (!residentName) {
       setPackages([]);
       setIsLoading(false);
@@ -46,11 +47,11 @@ const Residente = () => {
     } finally {
       setIsLoading(false);
     }
-  });
+  }, [residentName, t]);
 
   useEffect(() => {
     void loadPackages();
-  }, [residentName]);
+  }, [loadPackages]);
 
   const statusLabels: Record<PackageStatus, string> = {
     received: t("historial.status.received"),

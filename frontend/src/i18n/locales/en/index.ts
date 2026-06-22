@@ -1,3 +1,6 @@
+import type { Translation } from '../i18n-types'
+
+// `Translation` obliga a que inglés mantenga exactamente la estructura del locale base.
 const en = {
   common: {
     appName: 'EncomBox',
@@ -52,24 +55,24 @@ const en = {
     description: {
       login: 'Sign in with your email or username and password.',
       register: 'Fill in your details to create an account and enter right away.',
-      otp: 'Enter the temporary code sent to complete access for {{identifier}}.',
+      otp: 'Enter the temporary code sent to complete access for {identifier}.',
     },
     selectRole: 'Continue as',
-    loginButton: 'Sign in as {{role}}',
-    registerButton: 'Sign up as {{role}}',
+    loginButton: 'Sign in as {role}',
+    registerButton: 'Sign up as {role}',
     verifyOtpButton: 'Verify OTP code',
     googleDivider: 'or continue with',
     googleLoading: 'Loading Google sign in...',
-    loadingLogin: 'Validating {{role}} access and preparing your dashboard...',
-    loadingRegister: 'Creating your {{role}} account and preparing your dashboard...',
+    loadingLogin: 'Validating {role} access and preparing your dashboard...',
+    loadingRegister: 'Creating your {role} account and preparing your dashboard...',
     loadingOtp: 'Validating the second authentication factor...',
     success: {
-      login: 'Access granted. Redirecting to the {{destination}}.',
-      register: 'Account created successfully. Redirecting to the {{destination}}.',
-      otp: 'OTP validated successfully. Redirecting to the {{destination}}.',
-      google: 'Signed in with Google. Redirecting to the {{destination}}.',
+      login: 'Access granted. Redirecting to the {destination}.',
+      register: 'Account created successfully. Redirecting to the {destination}.',
+      otp: 'OTP validated successfully. Redirecting to the {destination}.',
+      google: 'Signed in with Google. Redirecting to the {destination}.',
       otpSent: 'A temporary OTP was generated. Enter the code to continue.',
-      otpSentWithPreview: 'A temporary OTP was generated. For local testing, use code {{code}}.',
+      otpSentWithPreview: 'A temporary OTP was generated. For local testing, use code {code}.',
     },
     roleDescription: {
       residente: 'Track the status and pickup of your packages.',
@@ -143,8 +146,8 @@ const en = {
       conserje: 'concierge dashboard',
       administrador: 'admin dashboard',
     },
-    otpSummary: 'Second factor for {{role}} using identifier {{identifier}}.',
-    otpExpiresAt: 'The code expires at {{expiresAt}}.',
+    otpSummary: 'Second factor for {role} using identifier {identifier}.',
+    otpExpiresAt: 'The code expires at {expiresAt}.',
     errors: {
       networkLogin: 'We could not connect to the authentication service. Check your network and try again.',
       networkRegister: 'We could not connect to the registration service. Check your network and try again.',
@@ -168,9 +171,9 @@ const en = {
     description_conserje: 'Review every registered package and update the status when the resident picks it up.',
     description_residente: 'Review only your registered packages and the status they are currently in.',
     filter: {
-      mine: 'Showing packages associated with {{recipient}}.',
+      mine: 'Showing packages associated with {recipient}.',
     },
-    recentSuccess: 'The package for {{recipient}} was added successfully and is already in the history.',
+    recentSuccess: 'The package for {recipient} was added successfully and is already in the history.',
     recentRecipientFallback: 'this resident',
     loading: 'Loading packages...',
     error: {
@@ -205,7 +208,7 @@ const en = {
       alreadyDelivered: 'Already delivered',
     },
     statusUpdate: {
-      success: 'The package for {{recipient}} was marked as delivered.',
+      success: 'The package for {recipient} was marked as delivered.',
       error: 'The package status could not be updated.',
     },
     edit: {
@@ -215,7 +218,7 @@ const en = {
         description: 'Notes',
       },
       saving: 'Saving...',
-      success: 'The package for {{recipient}} was updated successfully.',
+      success: 'The package for {recipient} was updated successfully.',
       error: 'The changes could not be saved.',
       validation: {
         recipient: {
@@ -252,7 +255,7 @@ const en = {
       apartment: 'Example: 101 or A-12',
       sender: 'Example: Mercado Libre',
     },
-    maxDate: 'Maximum allowed date: {{date}}',
+    maxDate: 'Maximum allowed date: {date}',
     urgency: {
       normal: 'Not urgent',
       urgent: 'Urgent',
@@ -280,7 +283,7 @@ const en = {
       submit: 'Error registering the package.',
       network: 'Error connecting to the server.',
     },
-    success: 'Package registered successfully as {{urgency}}.',
+    success: 'Package registered successfully as {urgency}.',
     success_urgency: {
       urgent: 'urgent',
       normal: 'not urgent',
@@ -292,7 +295,7 @@ const en = {
     title: 'My packages',
     description: 'Check your recent packages and quickly review their status.',
     filter: {
-      mine: 'Dashboard filtered for {{recipient}}.',
+      mine: 'Dashboard filtered for {recipient}.',
     },
     loading: 'Loading your packages...',
     error: {
@@ -312,6 +315,6 @@ const en = {
       two: 'Package 2 - Pending',
     },
   },
-}
+} satisfies Translation
 
 export default en

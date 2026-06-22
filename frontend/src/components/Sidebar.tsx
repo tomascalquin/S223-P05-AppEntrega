@@ -18,6 +18,11 @@ const Sidebar = () => {
       { key: "nav.myPackages", label: t("nav.myPackages") },
       { key: "nav.notifications", label: t("nav.notifications") },
     ],
+    administrador: [
+      { key: "nav.userManagement", label: t("nav.userManagement") },
+      { key: "nav.authorizedEmails", label: t("nav.authorizedEmails") },
+      { key: "nav.auditLogs", label: t("nav.auditLogs") },
+    ],
   };
 
   return (

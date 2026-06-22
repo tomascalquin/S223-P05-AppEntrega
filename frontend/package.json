@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "i18n:generate": "typesafe-i18n --no-watch",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
