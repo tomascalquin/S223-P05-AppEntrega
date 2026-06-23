@@ -132,6 +132,10 @@ type RootTranslation = {
 		 */
 		notifications: string
 		/**
+		 * R​e​c​l​a​m​o​s
+		 */
+		claims: string
+		/**
 		 * G​e​s​t​i​ó​n​ ​d​e​ ​u​s​u​a​r​i​o​s
 		 */
 		userManagement: string
@@ -1511,6 +1515,10 @@ export type TranslationFunctions = {
 		 * Notificaciones
 		 */
 		notifications: () => LocalizedString
+		/**
+		 * Reclamos
+		 */
+		claims: () => LocalizedString
 		/**
 		 * Gestión de usuarios
 		 */

@@ -8,6 +8,7 @@ import Conserje from "./pages/Conserje";
 import DashboardConserje from "./components/DashboardConserje";
 import Residente from "./pages/Residente";
 import HistorialEncomiendas from "./pages/HistorialEncomiendas";
+import Claims from "./pages/Claims";
 import Admin from "./pages/Admin";
 import AdminEmails from "./pages/AdminEmails";
 import AdminLogs from "./pages/AdminLogs";
@@ -97,6 +98,15 @@ const App = () => {
       />
 
       <Route
+        path="/conserje/reclamos"
+        element={
+          <ProtectedRoute allowedRole="conserje">
+            <Claims />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/residente"
         element={
           <ProtectedRoute allowedRole="residente">
@@ -110,6 +120,15 @@ const App = () => {
         element={
           <ProtectedRoute allowedRole="residente">
             <Residente />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/residente/reclamos"
+        element={
+          <ProtectedRoute allowedRole="residente">
+            <Claims />
           </ProtectedRoute>
         }
       />
@@ -137,6 +156,15 @@ const App = () => {
         element={
           <ProtectedRoute allowedRole="administrador">
             <AdminLogs />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reclamos"
+        element={
+          <ProtectedRoute allowedRole="administrador">
+            <Claims />
           </ProtectedRoute>
         }
       />

@@ -13,15 +13,18 @@ const navigationByRole = {
     { labelKey: "nav.home", to: "/conserje" },
     { labelKey: "nav.registerPackage", to: "/conserje/registrar" },
     { labelKey: "nav.history", to: "/conserje/historial" },
+    { labelKey: "nav.claims", to: "/conserje/reclamos" },
   ],
   residente: [
     { labelKey: "nav.packageHistory", to: "/residente" },
     { labelKey: "nav.myPackages", to: "/residente/mis-encomiendas" },
+    { labelKey: "nav.claims", to: "/residente/reclamos" },
   ],
   administrador: [
     { labelKey: "nav.userManagement", to: "/admin" },
     { labelKey: "nav.authorizedEmails", to: "/admin/correos" },
     { labelKey: "nav.auditLogs", to: "/admin/logs" },
+    { labelKey: "nav.claims", to: "/admin/reclamos" },
   ],
 } satisfies Record<Role, { labelKey: TranslationKey; to: string }[]>;
 

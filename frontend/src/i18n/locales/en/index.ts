@@ -38,6 +38,7 @@ const en = {
     myPackages: 'My packages',
     home: 'Home',
     notifications: 'Notifications',
+    claims: 'Claims',
     userManagement: 'User management',
     authorizedEmails: 'Authorized emails',
     auditLogs: 'Audit log',

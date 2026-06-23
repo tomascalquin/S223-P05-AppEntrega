@@ -38,6 +38,7 @@ const es = {
     myPackages: 'Mis encomiendas',
     home: 'Inicio',
     notifications: 'Notificaciones',
+    claims: 'Reclamos',
     userManagement: 'Gestión de usuarios',
     authorizedEmails: 'Correos autorizados',
     auditLogs: 'Registro de auditoría',

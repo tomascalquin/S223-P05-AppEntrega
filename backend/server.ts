@@ -9,6 +9,7 @@ import nodemailer from "nodemailer";
 import QRCode from "qrcode";
 
 type PackageStatus = "received" | "delivered" | "pending";
+type ClaimStatus = "open" | "in_review" | "closed";
 
 type PackageRow = RowDataPacket & {
   id: number;
@@ -22,6 +23,21 @@ type PackageRow = RowDataPacket & {
   retrieval_code: string | null;
   created_at: string;
   retrieved_at: string | null;
+};
+
+type ClaimRow = RowDataPacket & {
+  id: number;
+  package_id: number;
+  resident_id: number;
+  description: string;
+  status: ClaimStatus;
+  created_at: string;
+  package_recipient_name: string;
+  package_recipient_email: string;
+  package_apartment_number: string;
+  package_sender: string;
+  resident_name: string;
+  resident_email: string;
 };
 
 type ConserjeDashboardStatsRow = RowDataPacket & {
@@ -84,6 +100,12 @@ const allowedStatuses = new Set<PackageStatus>([
   "received",
   "delivered",
   "pending",
+]);
+
+const allowedClaimStatuses = new Set<ClaimStatus>([
+  "open",
+  "in_review",
+  "closed",
 ]);
 
 const PORT = Number(process.env.PORT || 3001);
@@ -174,6 +196,12 @@ const parsePackageId = (pathname: string) => {
   return Number.isInteger(id) && id > 0 ? id : null;
 };
 
+const parseClaimId = (pathname: string) => {
+  // # Centralizamos el parseo para que todos los endpoints de reclamos validen IDs de la misma forma.
+  const id = Number(pathname.split("/").pop());
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
 const normalizeRetrievalCode = (value: unknown) => {
   // # Aunque el QR lo genera el sistema, normalizamos por seguridad antes de consultar la base.
   if (typeof value !== "string") {
@@ -186,6 +214,11 @@ const normalizeRetrievalCode = (value: unknown) => {
 
 const isPackageStatus = (value: unknown): value is PackageStatus => {
   return typeof value === "string" && allowedStatuses.has(value as PackageStatus);
+};
+
+const isClaimStatus = (value: unknown): value is ClaimStatus => {
+  // # La lista cerrada evita estados inventados desde el frontend o llamadas manuales a la API.
+  return typeof value === "string" && allowedClaimStatuses.has(value as ClaimStatus);
 };
 
 const hasOwn = (value: Record<string, unknown>, key: string) => {
@@ -339,6 +372,20 @@ const ensureRoleAccess = (user: AuthTokenPayload, role: UserRole) => {
   return null;
 };
 
+const ensureAnyRoleAccess = (user: AuthTokenPayload, roles: UserRole[]) => {
+  // # Reclamos pueden ser gestionados por conserje o administrador, por eso este helper acepta más de un rol.
+  if (!roles.includes(user.role)) {
+    return jsonResponse(
+      {
+        error: `No tienes permisos para realizar esta acción. Roles permitidos: ${roles.join(", ")}.`,
+      },
+      { status: 403 }
+    );
+  }
+
+  return null;
+};
+
 const ensureAdminRequest = (request: Request) => {
   const auth = ensureAuthenticatedRequest(request);
 
@@ -409,6 +456,33 @@ const parseUserIdFromSegment = (pathname: string, segmentIndex: number) => {
 const getPackageById = async (id: number) => {
   const [rows] = await db.query<PackageRow[]>(
     "SELECT * FROM packages WHERE id = ?",
+    [id]
+  );
+
+  return rows[0] ?? null;
+};
+
+const getClaimById = async (id: number) => {
+  // # El join entrega al frontend contexto suficiente sin obligarlo a hacer llamadas extra por paquete o residente.
+  const [rows] = await db.query<ClaimRow[]>(
+    `SELECT
+       c.id,
+       c.package_id,
+       c.resident_id,
+       c.description,
+       c.status,
+       c.created_at,
+       p.recipient_name AS package_recipient_name,
+       p.recipient_email AS package_recipient_email,
+       p.apartment_number AS package_apartment_number,
+       p.sender AS package_sender,
+       u.name AS resident_name,
+       u.email AS resident_email
+     FROM claims c
+     INNER JOIN packages p ON p.id = c.package_id
+     INNER JOIN users u ON u.id = c.resident_id
+     WHERE c.id = ?
+     LIMIT 1`,
     [id]
   );
 
@@ -520,6 +594,55 @@ const sendRetrievalQrEmail = async ({
         cid: "retrieval-qr",
       },
     ],
+  });
+
+  return true;
+};
+
+type ClaimStatusEmailPayload = {
+  residentName: string;
+  residentEmail: string;
+  claimId: number;
+  packageSender: string;
+  status: ClaimStatus;
+};
+
+const sendClaimStatusEmail = async ({
+  residentName,
+  residentEmail,
+  claimId,
+  packageSender,
+  status,
+}: ClaimStatusEmailPayload) => {
+  if (!isMailConfigured()) {
+    // # En desarrollo no bloqueamos el cambio de estado si SMTP no está configurado.
+    console.warn(`[Mail] SMTP no configurado. Notificación de reclamo no enviada a ${residentEmail}.`);
+    return false;
+  }
+
+  const statusLabel: Record<ClaimStatus, string> = {
+    open: "abierto",
+    in_review: "en revisión",
+    closed: "cerrado",
+  };
+  const safeResidentName = escapeHtml(residentName);
+  const safePackageSender = escapeHtml(packageSender);
+  const safeStatusLabel = escapeHtml(statusLabel[status]);
+
+  // # Esta notificación cumple el criterio de aceptación: el residente se entera cuando gestión cambia el estado.
+  await createMailTransport().sendMail({
+    from: SMTP_FROM,
+    to: residentEmail,
+    subject: `Actualización de tu reclamo #${claimId}`,
+    text:
+      `Hola ${residentName},\n\n` +
+      `Tu reclamo #${claimId} asociado a la encomienda de ${packageSender} cambió a: ${statusLabel[status]}.\n`,
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #111827;">
+        <h2>Tu reclamo fue actualizado</h2>
+        <p>Hola ${safeResidentName}, el reclamo <strong>#${claimId}</strong> asociado a la encomienda de <strong>${safePackageSender}</strong> cambió a <strong>${safeStatusLabel}</strong>.</p>
+      </div>
+    `,
   });
 
   return true;
@@ -676,6 +799,26 @@ async function createTables() {
     }
 
     console.log("Tabla 'users' creada o ya existe.");
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS claims (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        package_id INT NOT NULL,
+        resident_id INT NOT NULL,
+        description TEXT NOT NULL,
+        status ENUM('open', 'in_review', 'closed') NOT NULL DEFAULT 'open',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        -- # Relacionamos cada reclamo con una encomienda real y con el residente autenticado que lo abrió.
+        CONSTRAINT fk_claims_package_id FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE,
+        CONSTRAINT fk_claims_resident_id FOREIGN KEY (resident_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_claims_package_id (package_id),
+        INDEX idx_claims_resident_id (resident_id),
+        INDEX idx_claims_status (status),
+        INDEX idx_claims_created_at (created_at)
+      )
+    `);
+
+    console.log("Tabla 'claims' creada o ya existe.");
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS authorized_emails (
@@ -1333,6 +1476,257 @@ Bun.serve({
         return jsonResponse(
           {
             message: "Error eliminando paquete",
+            error: String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "POST" && (url.pathname === "/api/claims" || url.pathname === "/claims")) {
+      try {
+        const auth = ensureAuthenticatedRequest(request);
+
+        if (auth.response) {
+          return auth.response;
+        }
+
+        const roleResponse = ensureRoleAccess(auth.user, "residente");
+
+        if (roleResponse) {
+          return roleResponse;
+        }
+
+        const body = (await request.json()) as Record<string, unknown>;
+        const packageId = Number(body.package_id);
+        const description = getRequiredString(body.description);
+
+        if (!Number.isInteger(packageId) || packageId <= 0) {
+          return jsonResponse(
+            { error: "package_id debe ser un id de encomienda válido" },
+            { status: 400 }
+          );
+        }
+
+        if (!description) {
+          return jsonResponse(
+            { error: "description es requerida" },
+            { status: 400 }
+          );
+        }
+
+        const packageItem = await getPackageById(packageId);
+
+        if (!packageItem) {
+          return jsonResponse(
+            { error: "La encomienda asociada no existe" },
+            { status: 404 }
+          );
+        }
+
+        if (
+          packageItem.recipient_name !== auth.user.name &&
+          packageItem.recipient_email !== auth.user.email
+        ) {
+          // # El residente solo puede abrir reclamos para encomiendas asociadas a su identidad.
+          return jsonResponse(
+            { error: "No puedes reclamar una encomienda de otro residente" },
+            { status: 403 }
+          );
+        }
+
+        const [result] = await db.query<ResultSetHeader>(
+          "INSERT INTO claims (package_id, resident_id, description, status) VALUES (?, ?, ?, 'open')",
+          [packageId, auth.user.id, description]
+        );
+
+        const createdClaim = await getClaimById(result.insertId);
+
+        if (!createdClaim) {
+          return jsonResponse(
+            { message: "No se pudo recuperar el reclamo recién creado" },
+            { status: 500 }
+          );
+        }
+
+        return jsonResponse(
+          {
+            message: "Reclamo creado exitosamente",
+            id: result.insertId,
+            claim: createdClaim,
+          },
+          { status: 201 }
+        );
+      } catch (error) {
+        return jsonResponse(
+          {
+            message: "Error creando reclamo",
+            error: String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "GET" && (url.pathname === "/api/claims" || url.pathname === "/claims")) {
+      try {
+        const auth = ensureAuthenticatedRequest(request);
+
+        if (auth.response) {
+          return auth.response;
+        }
+
+        const values: unknown[] = [];
+        const whereParts: string[] = [];
+
+        if (auth.user.role === "residente") {
+          // # Filtro obligatorio de backend: un residente nunca recibe reclamos ajenos.
+          whereParts.push("c.resident_id = ?");
+          values.push(auth.user.id);
+        } else {
+          const roleResponse = ensureAnyRoleAccess(auth.user, [
+            "conserje",
+            "administrador",
+          ]);
+
+          if (roleResponse) {
+            return roleResponse;
+          }
+        }
+
+        const whereClause =
+          whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
+
+        const [rows] = await db.query<ClaimRow[]>(
+          `SELECT
+             c.id,
+             c.package_id,
+             c.resident_id,
+             c.description,
+             c.status,
+             c.created_at,
+             p.recipient_name AS package_recipient_name,
+             p.recipient_email AS package_recipient_email,
+             p.apartment_number AS package_apartment_number,
+             p.sender AS package_sender,
+             u.name AS resident_name,
+             u.email AS resident_email
+           FROM claims c
+           INNER JOIN packages p ON p.id = c.package_id
+           INNER JOIN users u ON u.id = c.resident_id
+           ${whereClause}
+           ORDER BY c.created_at DESC`,
+          values
+        );
+
+        return jsonResponse({ claims: rows });
+      } catch (error) {
+        return jsonResponse(
+          {
+            message: "Error obteniendo reclamos",
+            error: String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "PATCH" && /^\/(?:api\/)?claims\/\d+$/.test(url.pathname)) {
+      try {
+        const auth = ensureAuthenticatedRequest(request);
+
+        if (auth.response) {
+          return auth.response;
+        }
+
+        const roleResponse = ensureAnyRoleAccess(auth.user, [
+          "conserje",
+          "administrador",
+        ]);
+
+        if (roleResponse) {
+          return roleResponse;
+        }
+
+        const id = parseClaimId(url.pathname);
+
+        if (!id) {
+          return jsonResponse({ error: "id inválido" }, { status: 400 });
+        }
+
+        const existingClaim = await getClaimById(id);
+
+        if (!existingClaim) {
+          return jsonResponse({ error: "Reclamo no encontrado" }, { status: 404 });
+        }
+
+        const body = (await request.json()) as Record<string, unknown>;
+        const nextStatus = body.status;
+
+        if (!isClaimStatus(nextStatus)) {
+          return jsonResponse(
+            { error: "status debe ser open, in_review o closed" },
+            { status: 400 }
+          );
+        }
+
+        if (existingClaim.status === "closed" && nextStatus !== "closed") {
+          // # Regla de negocio explícita: un reclamo cerrado no se puede reabrir.
+          return jsonResponse(
+            { error: "Un reclamo cerrado no puede volver a abrirse" },
+            { status: 409 }
+          );
+        }
+
+        const [result] = await db.query<ResultSetHeader>(
+          "UPDATE claims SET status = ? WHERE id = ?",
+          [nextStatus, id]
+        );
+
+        if (result.affectedRows === 0) {
+          return jsonResponse({ error: "Reclamo no encontrado" }, { status: 404 });
+        }
+
+        const updatedClaim = await getClaimById(id);
+
+        if (!updatedClaim) {
+          return jsonResponse(
+            { message: "No se pudo recuperar el reclamo actualizado" },
+            { status: 500 }
+          );
+        }
+
+        let notificationSent = false;
+        let notificationWarning: string | null = null;
+
+        if (existingClaim.status !== nextStatus) {
+          try {
+            notificationSent = await sendClaimStatusEmail({
+              residentName: updatedClaim.resident_name,
+              residentEmail: updatedClaim.resident_email,
+              claimId: updatedClaim.id,
+              packageSender: updatedClaim.package_sender,
+              status: updatedClaim.status,
+            });
+          } catch (error) {
+            // # El estado ya fue guardado; si el correo falla, avisamos sin revertir la gestión.
+            console.error("[Mail] Error notificando cambio de reclamo:", error);
+            notificationWarning =
+              "El estado fue actualizado, pero no se pudo enviar la notificación al residente.";
+          }
+        }
+
+        return jsonResponse({
+          message: notificationWarning ?? "Estado de reclamo actualizado exitosamente",
+          id,
+          claim: updatedClaim,
+          notification_sent: notificationSent,
+          notification_warning: notificationWarning,
+        });
+      } catch (error) {
+        return jsonResponse(
+          {
+            message: "Error actualizando reclamo",
             error: String(error),
           },
           { status: 500 }
