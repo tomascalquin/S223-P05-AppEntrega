@@ -10,12 +10,13 @@ import type {
   ApiNotificationResponse,
   PaginatedNotificationsResponse,
 } from "../types/notification";
+import { getStoredAccessToken } from "./auth";
 
 /**
  * CONFIGURACIÓN: Base URL de la API
  * Usa la variable de entorno VITE_API_URL si está disponible
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() || "http://localhost:3001";
 
 /**
  * CLASE: NotificationService
@@ -36,12 +37,12 @@ export class NotificationService {
     limit: number = 10
   ): Promise<PaginatedNotificationsResponse> {
     try {
-      const token = this.getAuthToken();
+      const token = getStoredAccessToken();
       if (!token) {
         throw new Error("No hay token de autenticación");
       }
 
-      const url = new URL(`${API_BASE_URL}/notifications`);
+      const url = new URL(`${API_BASE_URL}/api/notifications`);
       url.searchParams.append("page", page.toString());
       url.searchParams.append("limit", limit.toString());
 
@@ -83,13 +84,13 @@ export class NotificationService {
     notificationId: number
   ): Promise<Notification> {
     try {
-      const token = this.getAuthToken();
+      const token = getStoredAccessToken();
       if (!token) {
         throw new Error("No hay token de autenticación");
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/notifications/${notificationId}/read`,
+        `${API_BASE_URL}/api/notifications/${notificationId}/read`,
         {
           method: "PATCH",
           headers: {
@@ -128,12 +129,12 @@ export class NotificationService {
    */
   static async markAllNotificationsAsRead(): Promise<number> {
     try {
-      const token = this.getAuthToken();
+      const token = getStoredAccessToken();
       if (!token) {
         throw new Error("No hay token de autenticación");
       }
 
-      const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
+      const response = await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -158,25 +159,6 @@ export class NotificationService {
           error instanceof Error ? error.message : "Error desconocido"
         }`
       );
-    }
-  }
-
-  /**
-   * MÉTODO PRIVADO: getAuthToken
-   * Obtiene el token JWT del almacenamiento local
-   *
-   * @returns Token JWT o null si no existe
-   */
-  private static getAuthToken(): string | null {
-    try {
-      const sessionData = localStorage.getItem("authSession");
-      if (!sessionData) return null;
-
-      const session = JSON.parse(sessionData);
-      return session.accessToken || null;
-    } catch (error) {
-      console.error("Error obteniendo token de autenticación:", error);
-      return null;
     }
   }
 }

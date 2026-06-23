@@ -6,7 +6,7 @@
  * métodos reutilizables para crear, obtener y actualizar notificaciones.
  */
 
-import { pool } from "../db";
+import db from "../db";
 import type {
   Notification,
   CreateNotificationDto,
@@ -32,14 +32,10 @@ export class NotificationService {
     data: CreateNotificationDto
   ): Promise<Notification> {
     try {
-      const connection = await pool.getConnection();
-
-      const [result] = await connection.execute<ResultSetHeader>(
+      const [result] = await db.query<ResultSetHeader>(
         "INSERT INTO notifications (user_id, message) VALUES (?, ?)",
         [data.user_id, data.message]
       );
-
-      connection.release();
 
       return {
         id: result.insertId,
@@ -73,32 +69,29 @@ export class NotificationService {
     limit: number = 10
   ): Promise<PaginatedNotificationsResponse> {
     try {
-      const connection = await pool.getConnection();
       const offset = (page - 1) * limit;
 
       // Obtener notificaciones con paginación
-      const [notifications] = await connection.execute<RowDataPacket[]>(
-        `SELECT id, user_id, message, read, created_at 
-         FROM notifications 
-         WHERE user_id = ? 
-         ORDER BY created_at DESC 
+      const [notifications] = await db.query<RowDataPacket[]>(
+        `SELECT id, user_id, message, \`read\`, created_at
+         FROM notifications
+         WHERE user_id = ?
+         ORDER BY created_at DESC
          LIMIT ? OFFSET ?`,
         [userId, limit, offset]
       );
 
       // Obtener total de notificaciones del usuario
-      const [countResult] = await connection.execute<RowDataPacket[]>(
+      const [countResult] = await db.query<RowDataPacket[]>(
         "SELECT COUNT(*) as total FROM notifications WHERE user_id = ?",
         [userId]
       );
 
       // Obtener cantidad de notificaciones sin leer
-      const [unreadResult] = await connection.execute<RowDataPacket[]>(
-        "SELECT COUNT(*) as unread FROM notifications WHERE user_id = ? AND read = FALSE",
+      const [unreadResult] = await db.query<RowDataPacket[]>(
+        "SELECT COUNT(*) as unread FROM notifications WHERE user_id = ? AND `read` = FALSE",
         [userId]
       );
-
-      connection.release();
 
       const total = (countResult[0] as any).total;
       const unread = (unreadResult[0] as any).unread;
@@ -142,14 +135,10 @@ export class NotificationService {
     notificationId: number
   ): Promise<NotificationResponse | null> {
     try {
-      const connection = await pool.getConnection();
-
-      const [rows] = await connection.execute<RowDataPacket[]>(
-        "SELECT id, user_id, message, read, created_at FROM notifications WHERE id = ?",
+      const [rows] = await db.query<RowDataPacket[]>(
+        "SELECT id, user_id, message, `read`, created_at FROM notifications WHERE id = ?",
         [notificationId]
       );
-
-      connection.release();
 
       if (rows.length === 0) {
         return null;
@@ -184,14 +173,10 @@ export class NotificationService {
     notificationId: number
   ): Promise<NotificationResponse | null> {
     try {
-      const connection = await pool.getConnection();
-
-      const [result] = await connection.execute<ResultSetHeader>(
-        "UPDATE notifications SET read = TRUE WHERE id = ?",
+      const [result] = await db.query<ResultSetHeader>(
+        "UPDATE notifications SET `read` = TRUE WHERE id = ?",
         [notificationId]
       );
-
-      connection.release();
 
       if (result.affectedRows === 0) {
         return null;
@@ -217,14 +202,10 @@ export class NotificationService {
    */
   static async markAllNotificationsAsRead(userId: number): Promise<number> {
     try {
-      const connection = await pool.getConnection();
-
-      const [result] = await connection.execute<ResultSetHeader>(
-        "UPDATE notifications SET read = TRUE WHERE user_id = ? AND read = FALSE",
+      const [result] = await db.query<ResultSetHeader>(
+        "UPDATE notifications SET `read` = TRUE WHERE user_id = ? AND `read` = FALSE",
         [userId]
       );
-
-      connection.release();
 
       return result.affectedRows;
     } catch (error) {
@@ -246,14 +227,10 @@ export class NotificationService {
    */
   static async deleteNotification(notificationId: number): Promise<boolean> {
     try {
-      const connection = await pool.getConnection();
-
-      const [result] = await connection.execute<ResultSetHeader>(
+      const [result] = await db.query<ResultSetHeader>(
         "DELETE FROM notifications WHERE id = ?",
         [notificationId]
       );
-
-      connection.release();
 
       return result.affectedRows > 0;
     } catch (error) {
@@ -275,15 +252,11 @@ export class NotificationService {
    */
   static async deleteOldNotifications(daysOld: number = 30): Promise<number> {
     try {
-      const connection = await pool.getConnection();
-
-      const [result] = await connection.execute<ResultSetHeader>(
-        `DELETE FROM notifications 
+      const [result] = await db.query<ResultSetHeader>(
+        `DELETE FROM notifications
          WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)`,
         [daysOld]
       );
-
-      connection.release();
 
       return result.affectedRows;
     } catch (error) {

@@ -7,6 +7,7 @@ import { OAuth2Client } from "google-auth-library";
 import { randomBytes } from "crypto";
 import nodemailer from "nodemailer";
 import QRCode from "qrcode";
+import { NotificationService } from "./src/services/notificationService";
 
 type PackageStatus = "received" | "delivered" | "pending";
 type ClaimStatus = "open" | "in_review" | "closed";
@@ -108,6 +109,12 @@ const allowedClaimStatuses = new Set<ClaimStatus>([
   "closed",
 ]);
 
+const claimStatusLabel: Record<ClaimStatus, string> = {
+  open: "abierto",
+  in_review: "en revisión",
+  closed: "cerrado",
+};
+
 const PORT = Number(process.env.PORT || 3001);
 const JWT_SECRET = process.env.JWT_SECRET?.trim() ?? "";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
@@ -199,6 +206,13 @@ const parsePackageId = (pathname: string) => {
 const parseClaimId = (pathname: string) => {
   // # Centralizamos el parseo para que todos los endpoints de reclamos validen IDs de la misma forma.
   const id = Number(pathname.split("/").pop());
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const parseNotificationId = (pathname: string) => {
+  // # El id va en el penúltimo segmento (".../notifications/:id/read"), no en el último.
+  const parts = pathname.split("/");
+  const id = Number(parts[parts.length - 2]);
   return Number.isInteger(id) && id > 0 ? id : null;
 };
 
@@ -620,14 +634,9 @@ const sendClaimStatusEmail = async ({
     return false;
   }
 
-  const statusLabel: Record<ClaimStatus, string> = {
-    open: "abierto",
-    in_review: "en revisión",
-    closed: "cerrado",
-  };
   const safeResidentName = escapeHtml(residentName);
   const safePackageSender = escapeHtml(packageSender);
-  const safeStatusLabel = escapeHtml(statusLabel[status]);
+  const safeStatusLabel = escapeHtml(claimStatusLabel[status]);
 
   // # Esta notificación cumple el criterio de aceptación: el residente se entera cuando gestión cambia el estado.
   await createMailTransport().sendMail({
@@ -636,7 +645,7 @@ const sendClaimStatusEmail = async ({
     subject: `Actualización de tu reclamo #${claimId}`,
     text:
       `Hola ${residentName},\n\n` +
-      `Tu reclamo #${claimId} asociado a la encomienda de ${packageSender} cambió a: ${statusLabel[status]}.\n`,
+      `Tu reclamo #${claimId} asociado a la encomienda de ${packageSender} cambió a: ${claimStatusLabel[status]}.\n`,
     html: `
       <div style="font-family: Arial, sans-serif; color: #111827;">
         <h2>Tu reclamo fue actualizado</h2>
@@ -646,6 +655,86 @@ const sendClaimStatusEmail = async ({
   });
 
   return true;
+};
+
+const findResidentByEmail = async (email: string) => {
+  // # Las encomiendas no guardan user_id; este lookup es lo único que liga
+  // # un recipient_email tipeado por el conserje con una cuenta de residente real.
+  const [rows] = await db.query<UserRow[]>(
+    "SELECT * FROM users WHERE LOWER(email) = ? AND role = 'residente' LIMIT 1",
+    [normalizeEmail(email)]
+  );
+
+  return rows[0] ?? null;
+};
+
+type NotificationEmailPayload = {
+  to: string;
+  name: string;
+  subject: string;
+  message: string;
+};
+
+const sendNotificationEmail = async ({
+  to,
+  name,
+  subject,
+  message,
+}: NotificationEmailPayload) => {
+  if (!isMailConfigured()) {
+    console.warn(`[Mail] SMTP no configurado. Notificación no enviada a ${to}.`);
+    return false;
+  }
+
+  const safeName = escapeHtml(name);
+  const safeMessage = escapeHtml(message);
+  const safeSubject = escapeHtml(subject);
+
+  await createMailTransport().sendMail({
+    from: SMTP_FROM,
+    to,
+    subject,
+    text: `Hola ${name},\n\n${message}\n`,
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #111827;">
+        <h2>${safeSubject}</h2>
+        <p>Hola ${safeName},</p>
+        <p>${safeMessage}</p>
+      </div>
+    `,
+  });
+
+  return true;
+};
+
+type NotifyResidentPayload = {
+  userId: number;
+  email: string;
+  name: string;
+  message: string;
+  subject: string;
+};
+
+const notifyResident = async ({
+  userId,
+  email,
+  name,
+  message,
+  subject,
+}: NotifyResidentPayload) => {
+  // # Cada paso es independiente: un correo fallido no debe borrar la notificación
+  // # ya guardada, ni viceversa, igual que el resto de los envíos de este archivo.
+  try {
+    await NotificationService.createNotification({ user_id: userId, message });
+  } catch (error) {
+    console.error("[Notification] Error creando notificación en BD:", error);
+  }
+
+  try {
+    await sendNotificationEmail({ to: email, name, subject, message });
+  } catch (error) {
+    console.error("[Mail] Error enviando correo de notificación:", error);
+  }
 };
 
 async function createTables() {
@@ -848,6 +937,23 @@ async function createTables() {
     `);
 
     console.log("Tabla 'audit_logs' creada o ya existe.");
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        message VARCHAR(500) NOT NULL,
+        \`read\` BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_notifications_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_notifications_user_id (user_id),
+        INDEX idx_notifications_read (\`read\`),
+        INDEX idx_notifications_created_at (created_at),
+        INDEX idx_notifications_user_read (user_id, \`read\`)
+      )
+    `);
+
+    console.log("Tabla 'notifications' creada o ya existe.");
   } catch (error) {
     console.error("Error creando tablas:", error);
   }
@@ -1073,6 +1179,24 @@ Bun.serve({
           }
         }
 
+        try {
+          // # El correo del QR ya avisa al residente; aquí solo dejamos la notificación
+          // # en la campanita para quien tenga cuenta de residente con ese correo.
+          const residentUser = await findResidentByEmail(normalizedRecipientEmail);
+
+          if (residentUser) {
+            await NotificationService.createNotification({
+              user_id: residentUser.id,
+              message: `📦 Nuevo paquete registrado para ${recipientName} (ID: ${result.insertId})`,
+            });
+          }
+        } catch (error) {
+          console.error(
+            "[Notification] Error creando notificación de paquete registrado:",
+            error
+          );
+        }
+
         return jsonResponse({
           message: retrievalEmailWarning ?? "Paquete insertado exitosamente",
           id: result.insertId,
@@ -1150,6 +1274,27 @@ Bun.serve({
           return jsonResponse(
             { message: "No se pudo recuperar el paquete entregado" },
             { status: 500 }
+          );
+        }
+
+        try {
+          const residentUser = await findResidentByEmail(
+            deliveredPackage.recipient_email
+          );
+
+          if (residentUser) {
+            await notifyResident({
+              userId: residentUser.id,
+              email: residentUser.email,
+              name: residentUser.name,
+              subject: "Tu encomienda fue entregada",
+              message: `✅ Tu paquete de ${deliveredPackage.sender} fue entregado (ID: ${deliveredPackage.id}).`,
+            });
+          }
+        } catch (error) {
+          console.error(
+            "[Notification] Error notificando entrega de paquete:",
+            error
           );
         }
 
@@ -1370,6 +1515,8 @@ Bun.serve({
           values.push(getOptionalString(body.delivery_date));
         }
 
+        let transitionedToDelivered = false;
+
         if (hasOwn(body, "status")) {
           if (!isPackageStatus(body.status)) {
             return jsonResponse(
@@ -1385,6 +1532,7 @@ Bun.serve({
             // # Cualquier entrega manual también invalida el QR para impedir reuso.
             updates.push("retrieval_code = NULL");
             updates.push("retrieved_at = COALESCE(retrieved_at, NOW())");
+            transitionedToDelivered = existingPackage.status !== "delivered";
           } else if (existingPackage.status === "delivered") {
             updates.push("retrieved_at = NULL");
           }
@@ -1418,6 +1566,29 @@ Bun.serve({
             { message: "No se pudo recuperar el paquete actualizado" },
             { status: 500 }
           );
+        }
+
+        if (transitionedToDelivered) {
+          try {
+            const residentUser = await findResidentByEmail(
+              updatedPackage.recipient_email
+            );
+
+            if (residentUser) {
+              await notifyResident({
+                userId: residentUser.id,
+                email: residentUser.email,
+                name: residentUser.name,
+                subject: "Tu encomienda fue entregada",
+                message: `✅ Tu paquete de ${updatedPackage.sender} fue entregado (ID: ${updatedPackage.id}).`,
+              });
+            }
+          } catch (error) {
+            console.error(
+              "[Notification] Error notificando entrega manual de paquete:",
+              error
+            );
+          }
         }
 
         return jsonResponse({
@@ -1546,6 +1717,21 @@ Bun.serve({
           return jsonResponse(
             { message: "No se pudo recuperar el reclamo recién creado" },
             { status: 500 }
+          );
+        }
+
+        try {
+          await notifyResident({
+            userId: auth.user.id,
+            email: auth.user.email,
+            name: auth.user.name,
+            subject: `Reclamo #${result.insertId} recibido`,
+            message: `🔴 Reclamo abierto para tu paquete (ID: ${packageId}). Reclamo #${result.insertId}. El conserje lo revisará pronto.`,
+          });
+        } catch (error) {
+          console.error(
+            "[Notification] Error notificando apertura de reclamo:",
+            error
           );
         }
 
@@ -1714,6 +1900,19 @@ Bun.serve({
             notificationWarning =
               "El estado fue actualizado, pero no se pudo enviar la notificación al residente.";
           }
+
+          try {
+            // # El correo ya avisa el cambio; esto solo deja el registro en la campanita.
+            await NotificationService.createNotification({
+              user_id: updatedClaim.resident_id,
+              message: `✅ Tu reclamo #${updatedClaim.id} cambió a: ${claimStatusLabel[updatedClaim.status]}.`,
+            });
+          } catch (error) {
+            console.error(
+              "[Notification] Error creando notificación de cambio de reclamo:",
+              error
+            );
+          }
         }
 
         return jsonResponse({
@@ -1727,6 +1926,125 @@ Bun.serve({
         return jsonResponse(
           {
             message: "Error actualizando reclamo",
+            error: String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "GET" && url.pathname === "/api/notifications") {
+      try {
+        const auth = ensureAuthenticatedRequest(request);
+
+        if (auth.response) {
+          return auth.response;
+        }
+
+        const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1") || 1);
+        const limit = Math.max(1, parseInt(url.searchParams.get("limit") ?? "10") || 10);
+
+        if (limit > 100) {
+          return jsonResponse(
+            { error: "El límite máximo es 100" },
+            { status: 400 }
+          );
+        }
+
+        const data = await NotificationService.getNotificationsByUserId(
+          auth.user.id,
+          page,
+          limit
+        );
+
+        return jsonResponse({
+          message: "Notificaciones obtenidas exitosamente",
+          data,
+        });
+      } catch (error) {
+        return jsonResponse(
+          {
+            message: "Error obteniendo notificaciones",
+            error: String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "PATCH" && url.pathname === "/api/notifications/read-all") {
+      try {
+        const auth = ensureAuthenticatedRequest(request);
+
+        if (auth.response) {
+          return auth.response;
+        }
+
+        const updated = await NotificationService.markAllNotificationsAsRead(
+          auth.user.id
+        );
+
+        return jsonResponse({
+          message: "Todas las notificaciones han sido marcadas como leídas",
+          data: { updated },
+        });
+      } catch (error) {
+        return jsonResponse(
+          {
+            message: "Error marcando notificaciones como leídas",
+            error: String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (
+      method === "PATCH" &&
+      /^\/api\/notifications\/\d+\/read$/.test(url.pathname)
+    ) {
+      try {
+        const auth = ensureAuthenticatedRequest(request);
+
+        if (auth.response) {
+          return auth.response;
+        }
+
+        const notificationId = parseNotificationId(url.pathname);
+
+        if (!notificationId) {
+          return jsonResponse({ error: "id inválido" }, { status: 400 });
+        }
+
+        const notification =
+          await NotificationService.getNotificationById(notificationId);
+
+        if (!notification) {
+          return jsonResponse(
+            { error: "Notificación no encontrada" },
+            { status: 404 }
+          );
+        }
+
+        if (notification.user_id !== auth.user.id) {
+          // # Un residente nunca debe poder marcar como leída la notificación de otro.
+          return jsonResponse(
+            { error: "No tienes permisos para actualizar esta notificación" },
+            { status: 403 }
+          );
+        }
+
+        const updatedNotification =
+          await NotificationService.markNotificationAsRead(notificationId);
+
+        return jsonResponse({
+          message: "Notificación marcada como leída",
+          data: updatedNotification,
+        });
+      } catch (error) {
+        return jsonResponse(
+          {
+            message: "Error marcando notificación como leída",
             error: String(error),
           },
           { status: 500 }
