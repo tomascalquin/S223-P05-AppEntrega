@@ -2086,15 +2086,18 @@ Bun.serve({
     if (method === "POST" && url.pathname === "/api/auth/register") {
       try {
         const body = (await request.json()) as Record<string, unknown>;
-        const role = body.role;
+        // # El registro público siempre crea residentes: conserje y administrador
+        // # se asignan por whitelist (authorized_emails) o por el panel de admin,
+        // # nunca a partir de un valor que envía el propio cliente.
+        const role: UserRole = "residente";
         const name = getRequiredString(body.name);
         const email = getRequiredString(body.email);
         const username = getRequiredString(body.username);
         const password = getRequiredString(body.password);
 
-        if (!isUserRole(role) || !name || !email || !username || !password) {
+        if (!name || !email || !username || !password) {
           return jsonResponse(
-            { error: "role, name, email, username y password son requeridos" },
+            { error: "name, email, username y password son requeridos" },
             { status: 400 }
           );
         }
