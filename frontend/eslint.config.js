@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Los adaptadores y tipos i18n se regeneran por CLI y ya incluyen sus propias directivas de lint.
+  globalIgnores(['dist', 'src/i18n/locales/i18n-*.ts', 'src/i18n/locales/i18n-*.tsx']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

@@ -5,17 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "i18n:generate": "typesafe-i18n --no-watch",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "html5-qrcode": "^2.3.8",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.14.1",
+    "sonner": "^2.0.7",
+    "typesafe-i18n": "^5.27.1"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.13",
     "@eslint/js": "^9.39.4",
+    "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google SSO Test</title>
+
+  <!-- SDK oficial de Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <h1>Login con Google</h1>
+
+  <!-- Contenedor donde Google inicializa el login -->
+  <div
+    id="g_id_onload"
+    data-client_id="156919733559-vr6q4blfh3ckmc4u4ul1b02epercl20k.apps.googleusercontent.com"
+    data-callback="handleCredentialResponse"
+    data-auto_prompt="false"
+    data-ux_mode="popup"
+  ></div>
+
+  <!-- Botón visible de Google -->
+  <div
+    class="g_id_signin"
+    data-type="standard"
+    data-shape="rectangular"
+    data-theme="outline"
+    data-text="signin_with"
+    data-size="large"
+    data-logo_alignment="left"
+  ></div>
+
+  <!-- Área para mostrar logs en pantalla -->
+  <pre id="output"></pre>
+
+  <script>
+    // Obtiene el elemento donde mostraremos mensajes
+    const output = document.getElementById("output");
+
+    // Función auxiliar para imprimir mensajes en pantalla y consola
+    function log(message) {
+      console.log(message);
+      output.textContent +=
+        (typeof message === "string"
+          ? message
+          : JSON.stringify(message, null, 2)) + "\n\n";
+    }
+
+    // Esta función se ejecuta cuando Google devuelve la credencial
+    async function handleCredentialResponse(response) {
+      try {
+        log("Google respondió con credential:");
+        log(response);
+
+        // Envía el token de Google al backend
+        const res = await fetch("http://127.0.0.1:3001/api/auth/google", {
+          method: "POST",
+          mode: "cors",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            token: response.credential
+          })
+        });
+
+        log("Status backend:");
+        log(res.status);
+
+        const data = await res.json();
+        log("Respuesta backend:");
+        log(data);
+      } catch (error) {
+        log("Error en frontend:");
+        log(String(error));
+      }
+    }
+  </script>
+</body>
+</html>

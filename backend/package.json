@@ -1,17 +1,36 @@
 {
   "name": "backend",
-  "module": "src/server.ts",
+  "module": "src/index.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun run src/server.ts",
-    "start": "bun run src/server.ts",
-    "test-db": "bun run tests/test-db.ts"
+    "dev": "bun run server.ts",
+    "start": "bun run server.ts",
+    "express": "bun run src/index.ts",
+    "test-auth": "bun run tests/test-auth.ts",
+    "test-jwt": "bun run tests/test-jwt-complete.ts",
+    "test-endpoints": "bun run tests/test-protected-endpoints.ts",
+    "test-db": "bun run tests/test-db.ts",
+    "test:packages": "bun run tests/test-package-flow.ts",
+    "crear-admin": "bun run scripts/crear-admin.ts",
+    "test:all": "echo '🧪 Running all tests...' && bun run tests/test-jwt-complete.ts && bun run tests/test-auth.ts && bun run tests/validate-data.ts"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "mysql2": "^3.22.0"
+    "express": "^5.2.1",
+    "google-auth-library": "^10.6.2",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.22.1",
+    "nodemailer": "^9.0.1",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.12"
+    "@types/bun": "^1.3.12",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/nodemailer": "^8.0.1",
+    "@types/qrcode": "^1.5.6"
   }
 }
