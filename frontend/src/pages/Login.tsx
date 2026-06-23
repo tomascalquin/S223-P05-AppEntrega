@@ -9,6 +9,7 @@ import {
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import LoadingSpinner from "../components/LoadingSpinner";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
 import {
@@ -836,7 +837,7 @@ const Login = () => {
                 aria-live="polite"
                 className="flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100"
               >
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-200/30 border-t-emerald-200" />
+                <LoadingSpinner size="sm" color="emerald" />
                 {authStep === "otp"
                   ? t("auth.loadingOtp")
                   : t(`auth.loading${mode === "login" ? "Login" : "Register"}`, {
@@ -852,7 +853,7 @@ const Login = () => {
             >
               {isAuthenticating ? (
                 <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950" />
+                  <LoadingSpinner size="sm" color="slate" />
                   {t(
                     authStep === "otp"
                       ? "auth.status.verifyingOtp"
