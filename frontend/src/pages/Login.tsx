@@ -355,6 +355,9 @@ const Login = () => {
     setFieldErrors(initialFieldErrors);
     setFormData((current) => ({
       ...current,
+      // # El registro público es siempre como residente: conserje y administrador
+      // # solo se asignan desde el panel de administración interno.
+      role: nextMode === "register" ? "residente" : current.role,
       otpCode: "",
     }));
     resetFeedback();
@@ -482,7 +485,8 @@ const Login = () => {
       }
 
       const registeredUser = await register({
-        role: normalizedFormData.role,
+        // # Hardcodeado a propósito: el registro público nunca envía un rol elegido por el usuario.
+        role: "residente",
         name: normalizedFormData.name,
         email: normalizedFormData.email,
         username: normalizedFormData.username,
@@ -553,7 +557,9 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             {/* # El mismo formulario soporta login y registro; solo alternamos los campos que cambian entre ambos modos. */}
-            {authStep === "credentials" && (
+            {/* # El selector de roles solo aplica al login: conserje y administrador son
+                # cuentas existentes que inician sesión, nunca roles auto-asignables al registrarse. */}
+            {authStep === "credentials" && mode === "login" && (
               <div>
                 <p className="text-sm font-medium text-white/85">
                   {t("auth.selectRole")}
@@ -584,6 +590,19 @@ const Login = () => {
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* # El registro público siempre crea una cuenta "residente"; no se ofrece
+                # forma de elegir conserje/administrador desde este formulario. */}
+            {authStep === "credentials" && mode === "register" && (
+              <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-4">
+                <p className="text-sm font-semibold text-white">
+                  {t("common.roleLabel.resident")}
+                </p>
+                <p className="mt-1 text-sm leading-5 text-white/65">
+                  {t("auth.roleDescription.resident")}
+                </p>
               </div>
             )}
 

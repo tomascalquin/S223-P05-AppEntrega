@@ -25,23 +25,30 @@ interface AppUser extends RowDataPacket {
 // ========================================
 
 /**
- * FUNCIÓN: Asignar rol por defecto
- * 
- * Determina el rol del usuario basado en su email o parámetro.
- * 
- * Lógica:
- * - Si se especifica un rol en la solicitud, usarlo
- * - Si el email contiene "conserje" o "admin", asignar "conserje"
- * - De lo contrario, asignar "residente"
+ * Roles de alto privilegio que NUNCA pueden auto-asignarse desde un endpoint
+ * público (registro o alta automática vía Google). Solo se otorgan desde el
+ * panel de administración interno.
  */
-function assignDefaultRole(email: string, requestRole?: "conserje" | "residente"): "conserje" | "residente" {
-  if (requestRole) return requestRole;
+const PRIVILEGED_ROLES = new Set(["conserje", "administrador", "admin"]);
 
-  const lowerEmail = email.toLowerCase();
-  if (lowerEmail.includes("conserje") || lowerEmail.includes("admin")) {
-    return "conserje";
+const FORBIDDEN_ROLE_MESSAGE = "No está permitido registrarse directamente con este rol";
+
+/**
+ * FUNCIÓN: Rechazar intentos de auto-asignación de roles privilegiados
+ *
+ * Si el cliente envía un rol privilegiado en una alta pública, responde
+ * 403 de inmediato. Cualquier otro valor (o ausencia de rol) se ignora:
+ * el registro público siempre crea cuentas "residente".
+ */
+function rejectPrivilegedSelfRegistration(
+  res: Response,
+  requestRole?: unknown
+): boolean {
+  if (typeof requestRole === "string" && PRIVILEGED_ROLES.has(requestRole.toLowerCase())) {
+    res.status(403).json({ error: FORBIDDEN_ROLE_MESSAGE });
+    return true;
   }
-  return "residente";
+  return false;
 }
 
 /**
@@ -97,6 +104,11 @@ export async function register(req: Request, res: Response) {
   try {
     const { email, password, name, username, role: requestRole } = req.body;
 
+    // Seguridad: el registro público nunca puede crear cuentas con rol privilegiado.
+    if (rejectPrivilegedSelfRegistration(res, requestRole)) {
+      return;
+    }
+
     // Validaciones básicas
     if (!email || !password || !name) {
       return res.status(400).json({
@@ -134,8 +146,8 @@ export async function register(req: Request, res: Response) {
     const salt = await bcryptjs.genSalt(10);
     const passwordHash = await bcryptjs.hash(password, salt);
 
-    // Asignar rol
-    const userRole = assignDefaultRole(email, requestRole);
+    // El registro público siempre crea residentes; el rol del body se ignora a propósito.
+    const userRole = "residente";
 
     // Crear usuario en la BD
     const [result] = await db.query<ResultSetHeader>(
@@ -429,13 +441,16 @@ export async function googleLogin(req: Request, res: Response) {
     let user = users[0];
 
     if (!user) {
-      // Crear nuevo usuario desde Google
-      const assignedRole = assignDefaultRole(payload.email, requestRole);
-      
+      // Seguridad: la alta automática vía Google tampoco puede otorgar roles privilegiados.
+      if (rejectPrivilegedSelfRegistration(res, requestRole)) {
+        return;
+      }
+
+      // Crear nuevo usuario desde Google (siempre como residente)
       const [result] = await db.query<ResultSetHeader>(
         `INSERT INTO users (email, name, picture, role, is_active)
-         VALUES (?, ?, ?, ?, TRUE)`,
-        [payload.email, payload.name || "Sin nombre", payload.picture || null, assignedRole]
+         VALUES (?, ?, ?, 'residente', TRUE)`,
+        [payload.email, payload.name || "Sin nombre", payload.picture || null]
       );
 
       const [newUsers] = await db.query<AppUser[]>(
