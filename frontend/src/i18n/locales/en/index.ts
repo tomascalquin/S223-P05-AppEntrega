@@ -188,12 +188,14 @@ const en = {
       sender: 'Sender',
       deliveryDate: 'Delivery date',
       createdAt: 'Created',
+      retrievedAt: 'Pickup date',
       status: 'Status',
       actions: 'Actions',
     },
     date: {
       none: 'No date',
       invalid: 'Invalid date',
+      pending: 'Pending',
     },
     status: {
       received: 'Received',

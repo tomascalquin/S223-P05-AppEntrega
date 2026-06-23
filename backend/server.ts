@@ -16,6 +16,7 @@ type PackageRow = RowDataPacket & {
   delivery_date: string | null;
   status: PackageStatus;
   created_at: string;
+  retrieved_at: string | null;
 };
 
 type UserEstado = "activo" | "inactivo" | "bloqueado";
@@ -377,7 +378,8 @@ async function createTables() {
         sender VARCHAR(255) NOT NULL,
         delivery_date TIMESTAMP NULL,
         status ENUM('received', 'delivered', 'pending') DEFAULT 'received',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        retrieved_at TIMESTAMP NULL
       )
     `);
 
@@ -412,6 +414,9 @@ async function createTables() {
       "created_at",
       "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
     );
+    // # Guarda la fecha y hora exacta en que el residente retiró la encomienda,
+    // # para auditoría e historial. Queda NULL hasta que se marca como entregada.
+    await ensureColumn("retrieved_at", "retrieved_at TIMESTAMP NULL");
 
     console.log("Tabla 'packages' creada o ya existe.");
 
@@ -767,6 +772,15 @@ Bun.serve({
           return jsonResponse({ error: "id inválido" }, { status: 400 });
         }
 
+        const existingPackage = await getPackageById(id);
+
+        if (!existingPackage) {
+          return jsonResponse(
+            { error: "Paquete no encontrado" },
+            { status: 404 }
+          );
+        }
+
         const body = (await request.json()) as Record<string, unknown>;
         const updates: string[] = [];
         const values: unknown[] = [];
@@ -833,6 +847,12 @@ Bun.serve({
 
           updates.push("status = ?");
           values.push(body.status);
+
+          // # Registramos la fecha y hora exacta del retiro solo en la transición
+          // # hacia 'delivered'; así no se pisa el valor si ya estaba entregado.
+          if (body.status === "delivered" && existingPackage.status !== "delivered") {
+            updates.push("retrieved_at = NOW()");
+          }
         }
 
         if (updates.length === 0) {

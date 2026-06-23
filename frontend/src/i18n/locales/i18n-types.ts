@@ -594,6 +594,10 @@ type RootTranslation = {
 			 */
 			createdAt: string
 			/**
+			 * F​e​c​h​a​ ​d​e​ ​r​e​t​i​r​o
+			 */
+			retrievedAt: string
+			/**
 			 * E​s​t​a​d​o
 			 */
 			status: string
@@ -611,6 +615,10 @@ type RootTranslation = {
 			 * F​e​c​h​a​ ​n​o​ ​v​á​l​i​d​a
 			 */
 			invalid: string
+			/**
+			 * P​e​n​d​i​e​n​t​e
+			 */
+			pending: string
 		}
 		status: {
 			/**
@@ -1823,6 +1831,10 @@ export type TranslationFunctions = {
 			 */
 			createdAt: () => LocalizedString
 			/**
+			 * Fecha de retiro
+			 */
+			retrievedAt: () => LocalizedString
+			/**
 			 * Estado
 			 */
 			status: () => LocalizedString
@@ -1840,6 +1852,10 @@ export type TranslationFunctions = {
 			 * Fecha no válida
 			 */
 			invalid: () => LocalizedString
+			/**
+			 * Pendiente
+			 */
+			pending: () => LocalizedString
 		}
 		status: {
 			/**

@@ -11,6 +11,7 @@ export type PackageItem = {
   delivery_date: string | null;
   status: PackageStatus;
   created_at: string;
+  retrieved_at: string | null;
 };
 
 export type CreatePackagePayload = {
@@ -99,6 +100,7 @@ const isPackageItem = (value: unknown): value is PackageItem => {
     typeof value.sender === "string" &&
     (typeof value.delivery_date === "string" || value.delivery_date === null) &&
     typeof value.created_at === "string" &&
+    (typeof value.retrieved_at === "string" || value.retrieved_at === null) &&
     isPackageStatus(value.status)
   );
 };

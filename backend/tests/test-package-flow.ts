@@ -27,6 +27,7 @@ type PackageItem = {
   delivery_date: string | null;
   status: "received" | "delivered" | "pending";
   created_at: string;
+  retrieved_at: string | null;
 };
 
 type PackageCollectionResponse = {
@@ -48,6 +49,7 @@ type StoredPackageRow = RowDataPacket & {
   apartment_number: string;
   sender: string;
   status: "received" | "delivered" | "pending";
+  retrieved_at: string | null;
 };
 
 const API_URL = process.env.TEST_API_URL?.trim() || "http://localhost:3001";
@@ -177,7 +179,7 @@ const findStoredPackage = async (packageId: number) => {
   // # Verificamos directamente la base de datos para asegurar que la
   // # persistencia ocurrió de verdad y no solo a nivel de respuesta HTTP.
   const [rows] = await db.query<StoredPackageRow[]>(
-    "SELECT id, recipient_name, apartment_number, sender, status FROM packages WHERE id = ?",
+    "SELECT id, recipient_name, apartment_number, sender, status, retrieved_at FROM packages WHERE id = ?",
     [packageId]
   );
 
@@ -231,6 +233,10 @@ async function runPackageFlowTest() {
       storedPackage?.status === "received",
       "La encomienda no quedó con estado inicial 'received'."
     );
+    assert(
+      storedPackage?.retrieved_at === null,
+      "Una encomienda recién creada no debería tener retrieved_at."
+    );
 
     // # El conserje debe ver la encomienda en el historial general.
     const conciergePackages = await fetchPackages(conciergeSession.token);
@@ -259,6 +265,10 @@ async function runPackageFlowTest() {
       updatedPackage.status === "delivered",
       "La API no devolvió el estado actualizado a 'delivered'."
     );
+    assert(
+      updatedPackage.retrieved_at !== null,
+      "La API no devolvió retrieved_at al marcar la encomienda como entregada."
+    );
 
     // # Volvemos a consultar la base para confirmar que el cambio no fue
     // # solo visual y quedó persistido correctamente.
@@ -266,6 +276,10 @@ async function runPackageFlowTest() {
     assert(
       updatedStoredPackage?.status === "delivered",
       "El cambio de estado no quedó persistido en la base de datos."
+    );
+    assert(
+      updatedStoredPackage?.retrieved_at !== null,
+      "retrieved_at no quedó persistido en la base de datos tras marcar como entregada."
     );
 
     // # Finalmente comprobamos que el residente también ve el nuevo estado,
