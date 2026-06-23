@@ -7,6 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "bun run --cwd frontend test && bun run --cwd backend test",
+    "test:frontend": "bun run --cwd frontend test",
+    "test:backend": "bun run --cwd backend test",
+    "test:coverage": "bun run --cwd frontend test:coverage",
     "preview": "vite preview"
   },
   "dependencies": {

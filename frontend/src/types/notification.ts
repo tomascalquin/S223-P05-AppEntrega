@@ -32,7 +32,7 @@ export interface PaginatedNotificationsResponse {
  * INTERFAZ: ApiNotificationResponse
  * Estructura general de respuesta del servidor
  */
-export interface ApiNotificationResponse<T = any> {
+export interface ApiNotificationResponse<T = unknown> {
   message: string;
   data: T;
 }
