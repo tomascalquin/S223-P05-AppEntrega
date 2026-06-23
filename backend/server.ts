@@ -534,10 +534,9 @@ async function createTables() {
         delivery_date TIMESTAMP NULL,
         status ENUM('received', 'delivered', 'pending') DEFAULT 'received',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        retrieved_at TIMESTAMP NULL
+        retrieved_at TIMESTAMP NULL,
         -- # Payload interno del QR. NULL significa que el QR ya no sirve para retirar.
-        retrieval_code VARCHAR(32) NULL UNIQUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        retrieval_code VARCHAR(32) NULL UNIQUE
       )
     `);
 
