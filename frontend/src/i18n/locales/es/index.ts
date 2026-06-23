@@ -188,12 +188,14 @@ const es = {
       sender: 'Remitente',
       deliveryDate: 'Fecha entrega',
       createdAt: 'Registrada',
+      retrievedAt: 'Fecha de retiro',
       status: 'Estado',
       actions: 'Acciones',
     },
     date: {
       none: 'Sin fecha',
       invalid: 'Fecha no válida',
+      pending: 'Pendiente',
     },
     status: {
       received: 'Recibida',

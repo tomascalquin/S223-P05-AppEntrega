@@ -178,6 +178,28 @@ const HistorialEncomiendas = () => {
     });
   };
 
+  // # El retiro necesita fecha y hora exactas para auditoría, a diferencia
+  // # de las otras columnas que solo muestran el día.
+  const formatDateTime = (value: string | null) => {
+    if (!value) {
+      return t("historial.date.pending");
+    }
+
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return t("historial.date.invalid");
+    }
+
+    return parsedDate.toLocaleString(localeTag, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   // useCallback permite compartir la carga entre el efecto inicial y los controles manuales.
   const loadPackages = useCallback(async () => {
     setIsLoading(true);
@@ -718,7 +740,7 @@ const HistorialEncomiendas = () => {
         <div className="overflow-hidden rounded-xl border border-white/10 bg-[#2a2a2a]">
           {/* # Panel con scroll horizontal para tablas anchas en mobile. */}
           <div className="overflow-x-auto">
-            <table className="min-w-[720px] w-full table-auto text-left text-sm text-white">
+            <table className="min-w-[860px] w-full table-auto text-left text-sm text-white">
               <thead className="bg-white/5 text-gray-400">
                 <tr>
                   <th className="px-4 py-3 whitespace-nowrap font-medium">
@@ -735,6 +757,9 @@ const HistorialEncomiendas = () => {
                   </th>
                   <th className="px-4 py-3 whitespace-nowrap font-medium">
                     {t("historial.table.createdAt")}
+                  </th>
+                  <th className="px-4 py-3 whitespace-nowrap font-medium">
+                    {t("historial.table.retrievedAt")}
                   </th>
                   <th className="px-4 py-3 whitespace-nowrap font-medium">
                     {t("historial.table.status")}
@@ -767,6 +792,9 @@ const HistorialEncomiendas = () => {
                         {formatDate(item.delivery_date)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">{formatDate(item.created_at)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {formatDateTime(item.retrieved_at)}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
                           className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[item.status]}`}

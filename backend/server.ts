@@ -21,6 +21,7 @@ type PackageRow = RowDataPacket & {
   status: PackageStatus;
   retrieval_code: string | null;
   created_at: string;
+  retrieved_at: string | null;
 };
 
 type UserEstado = "activo" | "inactivo" | "bloqueado";
@@ -532,6 +533,8 @@ async function createTables() {
         sender VARCHAR(255) NOT NULL,
         delivery_date TIMESTAMP NULL,
         status ENUM('received', 'delivered', 'pending') DEFAULT 'received',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        retrieved_at TIMESTAMP NULL
         -- # Payload interno del QR. NULL significa que el QR ya no sirve para retirar.
         retrieval_code VARCHAR(32) NULL UNIQUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -574,6 +577,9 @@ async function createTables() {
       "created_at",
       "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
     );
+    // # Guarda la fecha y hora exacta en que el residente retiró la encomienda,
+    // # para auditoría e historial. Queda NULL hasta que se marca como entregada.
+    await ensureColumn("retrieved_at", "retrieved_at TIMESTAMP NULL");
 
     // # El índice único impide que dos encomiendas activas compartan el mismo identificador QR.
     const [retrievalCodeIndexes] = await db.query<RowDataPacket[]>(
@@ -1075,6 +1081,15 @@ Bun.serve({
 
         if (!id) {
           return jsonResponse({ error: "id inválido" }, { status: 400 });
+        }
+
+        const existingPackage = await getPackageById(id);
+
+        if (!existingPackage) {
+          return jsonResponse(
+            { error: "Paquete no encontrado" },
+            { status: 404 }
+          );
         }
 
         const body = (await request.json()) as Record<string, unknown>;
