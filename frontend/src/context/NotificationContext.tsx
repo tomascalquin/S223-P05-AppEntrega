@@ -12,6 +12,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
+import { useAuth } from "./AuthContext";
 import { NotificationService } from "../services/notifications";
 import type {
   Notification,
@@ -43,6 +44,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
  * - currentPage: Página actual de paginación
  */
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -174,12 +176,22 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   /**
-   * EFECTO: Cargar notificaciones al montar el componente
-   * Solo se ejecuta una vez cuando el proveedor se monta
+   * EFECTO: Cargar notificaciones cuando hay una sesión activa
+   * Sin usuario autenticado no hay token, así que evitamos la llamada
+   * (y la limpiamos al cerrar sesión para no dejar datos de otro usuario).
    */
   useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      setHasMore(true);
+      setCurrentPage(1);
+      setError(null);
+      return;
+    }
+
     fetchNotifications(1);
-  }, [fetchNotifications]);
+  }, [user, fetchNotifications]);
 
   /**
    * VALOR DEL CONTEXTO
