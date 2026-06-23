@@ -5,6 +5,7 @@ import { getHomePathForRole, type Role } from "./services/auth";
 
 import Login from "./pages/Login";
 import Conserje from "./pages/Conserje";
+import DashboardConserje from "./components/DashboardConserje";
 import Residente from "./pages/Residente";
 import HistorialEncomiendas from "./pages/HistorialEncomiendas";
 import Admin from "./pages/Admin";
@@ -24,10 +25,18 @@ const ProtectedRoute = ({ allowedRole, children }: ProtectedRouteProps) => {
     return <Navigate to="/" replace />;
   }
 
-  // # Si la sesión existe pero el rol no coincide, enviamos al usuario
-  // # a su dashboard real en vez de dejarlo atrapado en una ruta ajena.
   if (user.role !== allowedRole) {
-    return <Navigate to={getHomePathForRole(user.role)} replace />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#1f1f1f] px-6 text-center text-white">
+        <div className="max-w-md rounded-xl border border-red-500/30 bg-red-500/10 p-6">
+          <p className="text-sm font-semibold uppercase text-red-200">403</p>
+          <h1 className="mt-2 text-xl font-semibold">Acceso denegado</h1>
+          <p className="mt-2 text-sm text-red-100">
+            Esta vista requiere rol {allowedRole}. Tu sesión actual es {user.role}.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return <MainLayout>{children}</MainLayout>;
@@ -62,6 +71,15 @@ const App = () => {
 
       <Route
         path="/conserje"
+        element={
+          <ProtectedRoute allowedRole="conserje">
+            <DashboardConserje />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/conserje/registrar"
         element={
           <ProtectedRoute allowedRole="conserje">
             <Conserje />

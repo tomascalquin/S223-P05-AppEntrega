@@ -323,6 +323,27 @@ const en = {
       resultSender: 'Sender: {sender}',
     },
   },
+  conserjeDashboard: {
+    title: 'Concierge dashboard',
+    description: 'Real-time summary of pending packages and today\'s pickups.',
+    loading: 'Loading concierge summary...',
+    empty: 'There are no pending packages to pick up.',
+    error: {
+      load: 'The concierge summary could not be loaded.',
+    },
+    action: {
+      register: 'Register package',
+    },
+    stats: {
+      pending: 'Pending delivery',
+      deliveredToday: 'Delivered today',
+      oldestPending: 'Oldest unclaimed',
+    },
+    oldest: {
+      title: 'Oldest unclaimed package',
+      description: 'Prioritize follow-up for the package that has been pending the longest.',
+    },
+  },
   residente: {
     title: 'My packages',
     description: 'Check your recent packages and quickly review their status.',
