@@ -323,6 +323,27 @@ const es = {
       resultSender: 'Remitente: {sender}',
     },
   },
+  conserjeDashboard: {
+    title: 'Dashboard conserje',
+    description: 'Resumen en tiempo real de encomiendas pendientes y retiros del día.',
+    loading: 'Cargando resumen de conserjería...',
+    empty: 'No hay encomiendas pendientes por retirar.',
+    error: {
+      load: 'No se pudo cargar el resumen de conserjería.',
+    },
+    action: {
+      register: 'Registrar encomienda',
+    },
+    stats: {
+      pending: 'Pendientes de entrega',
+      deliveredToday: 'Entregadas hoy',
+      oldestPending: 'Más antiguas sin retirar',
+    },
+    oldest: {
+      title: 'Más antigua sin retirar',
+      description: 'Prioriza el seguimiento de la encomienda que lleva más tiempo pendiente.',
+    },
+  },
   residente: {
     title: 'Mis encomiendas',
     description: 'Consulta tus encomiendas recientes y revisa rápidamente su estado.',

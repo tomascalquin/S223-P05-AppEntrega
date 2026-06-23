@@ -10,7 +10,8 @@ import type { Role } from "../services/auth";
 // # `satisfies` valida las claves sin ensancharlas a string.
 const navigationByRole = {
   conserje: [
-    { labelKey: "nav.registerPackage", to: "/conserje" },
+    { labelKey: "nav.home", to: "/conserje" },
+    { labelKey: "nav.registerPackage", to: "/conserje/registrar" },
     { labelKey: "nav.history", to: "/conserje/historial" },
   ],
   residente: [
@@ -38,6 +39,7 @@ const MainLayout = ({ children }: { children: ReactNode }) => {
         <NavLink
           key={item.to}
           to={item.to}
+          end={item.to === "/conserje" || item.to === "/residente" || item.to === "/admin"}
           onClick={() => setIsMobileNavigationOpen(false)}
           className={({ isActive }) =>
             `rounded-xl px-3 py-2 text-left transition ${
@@ -76,6 +78,7 @@ const MainLayout = ({ children }: { children: ReactNode }) => {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  end={item.to === "/conserje" || item.to === "/residente" || item.to === "/admin"}
                   className={({ isActive }) =>
                     `rounded-full px-3 py-2 text-sm transition ${
                       isActive

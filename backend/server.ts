@@ -24,6 +24,11 @@ type PackageRow = RowDataPacket & {
   retrieved_at: string | null;
 };
 
+type ConserjeDashboardStatsRow = RowDataPacket & {
+  pending_total: number;
+  delivered_today: number;
+};
+
 type UserEstado = "activo" | "inactivo" | "bloqueado";
 
 type UserRow = RowDataPacket & {
@@ -985,7 +990,7 @@ Bun.serve({
 
         const [result] = await db.query<ResultSetHeader>(
           // # Esta actualización atómica entrega el paquete e invalida el QR en la misma operación.
-          "UPDATE packages SET status = 'delivered', delivery_date = COALESCE(delivery_date, NOW()), retrieval_code = NULL WHERE id = ? AND retrieval_code = ?",
+          "UPDATE packages SET status = 'delivered', delivery_date = COALESCE(delivery_date, NOW()), retrieved_at = NOW(), retrieval_code = NULL WHERE id = ? AND retrieval_code = ?",
           [packageItem.id, retrievalCode]
         );
 
@@ -1013,6 +1018,53 @@ Bun.serve({
         return jsonResponse(
           {
             message: "Error validando QR de retiro",
+            error: String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "GET" && url.pathname === "/api/packages/stats/conserje") {
+      try {
+        const auth = ensureAuthenticatedRequest(request);
+
+        if (auth.response) {
+          return auth.response;
+        }
+
+        const roleResponse = ensureRoleAccess(auth.user, "conserje");
+
+        if (roleResponse) {
+          return roleResponse;
+        }
+
+        const [statsRows] = await db.query<ConserjeDashboardStatsRow[]>(
+          `SELECT
+             SUM(CASE WHEN status <> 'delivered' THEN 1 ELSE 0 END) AS pending_total,
+             SUM(CASE WHEN status = 'delivered' AND DATE(retrieved_at) = CURRENT_DATE() THEN 1 ELSE 0 END) AS delivered_today
+           FROM packages`
+        );
+
+        const [oldestPendingRows] = await db.query<PackageRow[]>(
+          `SELECT *
+           FROM packages
+           WHERE status <> 'delivered'
+           ORDER BY COALESCE(delivery_date, created_at) ASC, created_at ASC
+           LIMIT 1`
+        );
+
+        return jsonResponse({
+          stats: {
+            pending_total: Number(statsRows[0]?.pending_total ?? 0),
+            delivered_today: Number(statsRows[0]?.delivered_today ?? 0),
+            oldest_pending_package: oldestPendingRows[0] ?? null,
+          },
+        });
+      } catch (error) {
+        return jsonResponse(
+          {
+            message: "Error obteniendo estadísticas de conserjería",
             error: String(error),
           },
           { status: 500 }
@@ -1189,6 +1241,9 @@ Bun.serve({
           if (body.status === "delivered") {
             // # Cualquier entrega manual también invalida el QR para impedir reuso.
             updates.push("retrieval_code = NULL");
+            updates.push("retrieved_at = COALESCE(retrieved_at, NOW())");
+          } else if (existingPackage.status === "delivered") {
+            updates.push("retrieved_at = NULL");
           }
         }
 

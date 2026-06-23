@@ -63,6 +63,12 @@ type PackageVerificationResponse = {
   message?: string;
 };
 
+export type ConserjeDashboardStats = {
+  pending_total: number;
+  delivered_today: number;
+  oldest_pending_package: PackageItem | null;
+};
+
 type PackageErrorCode =
   | "NETWORK_ERROR"
   | "UNAUTHORIZED"
@@ -266,6 +272,35 @@ const buildVerificationResponse = (data: ApiResponseData | null) => {
   } satisfies PackageVerificationResponse;
 };
 
+const buildConserjeStatsResponse = (data: ApiResponseData | null) => {
+  if (!isObject(data?.stats)) {
+    throw new PackageApiError(
+      "INVALID_RESPONSE",
+      "El servidor no devolvio estadisticas validas."
+    );
+  }
+
+  const stats = data.stats;
+
+  if (
+    typeof stats.pending_total !== "number" ||
+    typeof stats.delivered_today !== "number" ||
+    (stats.oldest_pending_package !== null &&
+      !isPackageItem(stats.oldest_pending_package))
+  ) {
+    throw new PackageApiError(
+      "INVALID_RESPONSE",
+      "El servidor respondio con estadisticas incompletas."
+    );
+  }
+
+  return {
+    pending_total: stats.pending_total,
+    delivered_today: stats.delivered_today,
+    oldest_pending_package: stats.oldest_pending_package,
+  } satisfies ConserjeDashboardStats;
+};
+
 export const fetchPackages = async (filters: PackageFilters = {}) => {
   const searchParams = new URLSearchParams();
 
@@ -291,6 +326,16 @@ export const fetchPackages = async (filters: PackageFilters = {}) => {
   );
 
   return buildCollectionResponse(responseData).packages;
+};
+
+export const fetchConserjeDashboardStats = async () => {
+  const responseData = await request(
+    "/api/packages/stats/conserje",
+    { method: "GET" },
+    "No se pudieron cargar las estadisticas de conserjeria."
+  );
+
+  return buildConserjeStatsResponse(responseData);
 };
 
 export const createPackage = async (payload: CreatePackagePayload) => {

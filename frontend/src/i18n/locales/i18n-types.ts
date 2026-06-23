@@ -973,6 +973,60 @@ type RootTranslation = {
 			resultSender: RequiredParams<'sender'>
 		}
 	}
+	conserjeDashboard: {
+		/**
+		 * D​a​s​h​b​o​a​r​d​ ​c​o​n​s​e​r​j​e
+		 */
+		title: string
+		/**
+		 * R​e​s​u​m​e​n​ ​e​n​ ​t​i​e​m​p​o​ ​r​e​a​l​ ​d​e​ ​e​n​c​o​m​i​e​n​d​a​s​ ​p​e​n​d​i​e​n​t​e​s​ ​y​ ​r​e​t​i​r​o​s​ ​d​e​l​ ​d​í​a​.
+		 */
+		description: string
+		/**
+		 * C​a​r​g​a​n​d​o​ ​r​e​s​u​m​e​n​ ​d​e​ ​c​o​n​s​e​r​j​e​r​í​a​.​.​.
+		 */
+		loading: string
+		/**
+		 * N​o​ ​h​a​y​ ​e​n​c​o​m​i​e​n​d​a​s​ ​p​e​n​d​i​e​n​t​e​s​ ​p​o​r​ ​r​e​t​i​r​a​r​.
+		 */
+		empty: string
+		error: {
+			/**
+			 * N​o​ ​s​e​ ​p​u​d​o​ ​c​a​r​g​a​r​ ​e​l​ ​r​e​s​u​m​e​n​ ​d​e​ ​c​o​n​s​e​r​j​e​r​í​a​.
+			 */
+			load: string
+		}
+		action: {
+			/**
+			 * R​e​g​i​s​t​r​a​r​ ​e​n​c​o​m​i​e​n​d​a
+			 */
+			register: string
+		}
+		stats: {
+			/**
+			 * P​e​n​d​i​e​n​t​e​s​ ​d​e​ ​e​n​t​r​e​g​a
+			 */
+			pending: string
+			/**
+			 * E​n​t​r​e​g​a​d​a​s​ ​h​o​y
+			 */
+			deliveredToday: string
+			/**
+			 * M​á​s​ ​a​n​t​i​g​u​a​s​ ​s​i​n​ ​r​e​t​i​r​a​r
+			 */
+			oldestPending: string
+		}
+		oldest: {
+			/**
+			 * M​á​s​ ​a​n​t​i​g​u​a​ ​s​i​n​ ​r​e​t​i​r​a​r
+			 */
+			title: string
+			/**
+			 * P​r​i​o​r​i​z​a​ ​e​l​ ​s​e​g​u​i​m​i​e​n​t​o​ ​d​e​ ​l​a​ ​e​n​c​o​m​i​e​n​d​a​ ​q​u​e​ ​l​l​e​v​a​ ​m​á​s​ ​t​i​e​m​p​o​ ​p​e​n​d​i​e​n​t​e​.
+			 */
+			description: string
+		}
+	}
 	residente: {
 		/**
 		 * M​i​s​ ​e​n​c​o​m​i​e​n​d​a​s
@@ -2274,6 +2328,60 @@ export type TranslationFunctions = {
 			 * Remitente: {sender}
 			 */
 			resultSender: (arg: { sender: unknown }) => LocalizedString
+		}
+	}
+	conserjeDashboard: {
+		/**
+		 * Dashboard conserje
+		 */
+		title: () => LocalizedString
+		/**
+		 * Resumen en tiempo real de encomiendas pendientes y retiros del día.
+		 */
+		description: () => LocalizedString
+		/**
+		 * Cargando resumen de conserjería...
+		 */
+		loading: () => LocalizedString
+		/**
+		 * No hay encomiendas pendientes por retirar.
+		 */
+		empty: () => LocalizedString
+		error: {
+			/**
+			 * No se pudo cargar el resumen de conserjería.
+			 */
+			load: () => LocalizedString
+		}
+		action: {
+			/**
+			 * Registrar encomienda
+			 */
+			register: () => LocalizedString
+		}
+		stats: {
+			/**
+			 * Pendientes de entrega
+			 */
+			pending: () => LocalizedString
+			/**
+			 * Entregadas hoy
+			 */
+			deliveredToday: () => LocalizedString
+			/**
+			 * Más antiguas sin retirar
+			 */
+			oldestPending: () => LocalizedString
+		}
+		oldest: {
+			/**
+			 * Más antigua sin retirar
+			 */
+			title: () => LocalizedString
+			/**
+			 * Prioriza el seguimiento de la encomienda que lleva más tiempo pendiente.
+			 */
+			description: () => LocalizedString
 		}
 	}
 	residente: {
