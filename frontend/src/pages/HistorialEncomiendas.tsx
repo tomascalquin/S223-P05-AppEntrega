@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import LoadingSpinner from "../components/LoadingSpinner";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
 import {
@@ -705,10 +706,12 @@ const HistorialEncomiendas = () => {
         </section>
       )}
 
-      {/* # Estado de carga inicial o recarga manual. */}
+      {/* # Estado de carga inicial o recarga manual: spinner centrado en vez de
+          # mostrar una tabla vacía mientras el backend todavía responde. */}
       {isLoading && (
-        <div className="rounded-xl border border-white/10 bg-[#2a2a2a] p-5 text-sm text-gray-300">
-          {t("historial.loading")}
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-white/10 bg-[#2a2a2a] p-10 text-sm text-gray-300">
+          <LoadingSpinner label={t("historial.loading")} />
+          <p>{t("historial.loading")}</p>
         </div>
       )}
 
