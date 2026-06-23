@@ -1376,6 +1376,108 @@ type RootTranslation = {
 			'delete': string
 		}
 	}
+	notifications: {
+		/**
+		 * N​o​t​i​f​i​c​a​c​i​o​n​e​s
+		 */
+		title: string
+		/**
+		 * {​u​n​r​e​a​d​}​ ​s​i​n​ ​l​e​e​r​ ​•​ ​{​t​o​t​a​l​}​ ​t​o​t​a​l
+		 * @param {unknown} total
+		 * @param {unknown} unread
+		 */
+		summary: RequiredParams<'total' | 'unread'>
+		/**
+		 * T​o​d​a​s​ ​l​e​í​d​a​s
+		 */
+		allRead: string
+		/**
+		 * M​a​r​c​a​r​ ​t​o​d​a​s​ ​c​o​m​o​ ​l​e​í​d​a​s
+		 */
+		markAllAsRead: string
+		/**
+		 * M​a​r​c​a​r​ ​c​o​m​o​ ​l​e​í​d​a
+		 */
+		markAsRead: string
+		/**
+		 * C​e​r​r​a​r​ ​e​r​r​o​r
+		 */
+		closeError: string
+		/**
+		 * C​e​r​r​a​r​ ​p​a​n​e​l​ ​d​e​ ​n​o​t​i​f​i​c​a​c​i​o​n​e​s
+		 */
+		closePanel: string
+		/**
+		 * {​c​o​u​n​t​}​ ​n​o​t​i​f​i​c​a​c​i​o​n​e​s​ ​s​i​n​ ​l​e​e​r
+		 * @param {unknown} count
+		 */
+		unreadAriaLabel: RequiredParams<'count'>
+		empty: {
+			/**
+			 * N​o​ ​h​a​y​ ​n​o​t​i​f​i​c​a​c​i​o​n​e​s
+			 */
+			title: string
+			/**
+			 * V​o​l​v​e​r​e​m​o​s​ ​a​ ​c​o​n​t​a​c​t​a​r​t​e​ ​p​r​o​n​t​o
+			 */
+			subtitle: string
+		}
+		/**
+		 * C​a​r​g​a​r​ ​m​á​s​ ​n​o​t​i​f​i​c​a​c​i​o​n​e​s
+		 */
+		loadMore: string
+		/**
+		 * N​o​ ​h​a​y​ ​m​á​s​ ​n​o​t​i​f​i​c​a​c​i​o​n​e​s
+		 */
+		noMore: string
+		claimStatus: {
+			/**
+			 * a​b​i​e​r​t​o
+			 */
+			open: string
+			/**
+			 * e​n​ ​r​e​v​i​s​i​ó​n
+			 */
+			in_review: string
+			/**
+			 * c​e​r​r​a​d​o
+			 */
+			closed: string
+		}
+		events: {
+			/**
+			 * �​�​ ​N​u​e​v​o​ ​p​a​q​u​e​t​e​ ​r​e​g​i​s​t​r​a​d​o​ ​p​a​r​a​ ​{​r​e​c​i​p​i​e​n​t​N​a​m​e​}​ ​(​I​D​:​ ​{​p​a​c​k​a​g​e​I​d​}​)
+			 * @param {unknown} packageId
+			 * @param {unknown} recipientName
+			 */
+			packageCreated: RequiredParams<'packageId' | 'recipientName'>
+			/**
+			 * ✅​ ​T​u​ ​p​a​q​u​e​t​e​ ​d​e​ ​{​s​e​n​d​e​r​}​ ​f​u​e​ ​e​n​t​r​e​g​a​d​o​ ​(​I​D​:​ ​{​p​a​c​k​a​g​e​I​d​}​)​.
+			 * @param {unknown} packageId
+			 * @param {unknown} sender
+			 */
+			packageDelivered: RequiredParams<'packageId' | 'sender'>
+			/**
+			 * �​�​ ​R​e​c​l​a​m​o​ ​a​b​i​e​r​t​o​ ​p​a​r​a​ ​t​u​ ​p​a​q​u​e​t​e​ ​(​I​D​:​ ​{​p​a​c​k​a​g​e​I​d​}​)​.​ ​R​e​c​l​a​m​o​ ​#​{​c​l​a​i​m​I​d​}​.​ ​E​l​ ​c​o​n​s​e​r​j​e​ ​l​o​ ​r​e​v​i​s​a​r​á​ ​p​r​o​n​t​o​.
+			 * @param {unknown} claimId
+			 * @param {unknown} packageId
+			 */
+			claimOpened: RequiredParams<'claimId' | 'packageId'>
+			/**
+			 * ✅​ ​T​u​ ​r​e​c​l​a​m​o​ ​#​{​c​l​a​i​m​I​d​}​ ​c​a​m​b​i​ó​ ​a​:​ ​{​s​t​a​t​u​s​}​.
+			 * @param {unknown} claimId
+			 * @param {unknown} status
+			 */
+			claimStatusChanged: RequiredParams<'claimId' | 'status'>
+			/**
+			 * T​i​e​n​e​s​ ​u​n​a​ ​e​n​c​o​m​i​e​n​d​a​ ​d​e​ ​{​s​e​n​d​e​r​}​ ​(​d​e​p​t​o​ ​{​a​p​a​r​t​m​e​n​t​}​)​ ​e​s​p​e​r​a​n​d​o​ ​r​e​t​i​r​o​ ​h​a​c​e​ ​{​d​a​y​s​}​ ​d​í​a​(​s​)​.​ ​P​o​r​ ​f​a​v​o​r​ ​a​c​é​r​c​a​t​e​ ​a​ ​c​o​n​s​e​r​j​e​r​í​a​ ​a​ ​r​e​t​i​r​a​r​l​a​.
+			 * @param {unknown} apartment
+			 * @param {unknown} days
+			 * @param {unknown} sender
+			 */
+			packagePendingReminder: RequiredParams<'apartment' | 'days' | 'sender'>
+		}
+	}
 }
 
 export type TranslationFunctions = {
@@ -2705,6 +2807,94 @@ export type TranslationFunctions = {
 			 * Error al eliminar el correo.
 			 */
 			'delete': () => LocalizedString
+		}
+	}
+	notifications: {
+		/**
+		 * Notificaciones
+		 */
+		title: () => LocalizedString
+		/**
+		 * {unread} sin leer • {total} total
+		 */
+		summary: (arg: { total: unknown, unread: unknown }) => LocalizedString
+		/**
+		 * Todas leídas
+		 */
+		allRead: () => LocalizedString
+		/**
+		 * Marcar todas como leídas
+		 */
+		markAllAsRead: () => LocalizedString
+		/**
+		 * Marcar como leída
+		 */
+		markAsRead: () => LocalizedString
+		/**
+		 * Cerrar error
+		 */
+		closeError: () => LocalizedString
+		/**
+		 * Cerrar panel de notificaciones
+		 */
+		closePanel: () => LocalizedString
+		/**
+		 * {count} notificaciones sin leer
+		 */
+		unreadAriaLabel: (arg: { count: unknown }) => LocalizedString
+		empty: {
+			/**
+			 * No hay notificaciones
+			 */
+			title: () => LocalizedString
+			/**
+			 * Volveremos a contactarte pronto
+			 */
+			subtitle: () => LocalizedString
+		}
+		/**
+		 * Cargar más notificaciones
+		 */
+		loadMore: () => LocalizedString
+		/**
+		 * No hay más notificaciones
+		 */
+		noMore: () => LocalizedString
+		claimStatus: {
+			/**
+			 * abierto
+			 */
+			open: () => LocalizedString
+			/**
+			 * en revisión
+			 */
+			in_review: () => LocalizedString
+			/**
+			 * cerrado
+			 */
+			closed: () => LocalizedString
+		}
+		events: {
+			/**
+			 * 📦 Nuevo paquete registrado para {recipientName} (ID: {packageId})
+			 */
+			packageCreated: (arg: { packageId: unknown, recipientName: unknown }) => LocalizedString
+			/**
+			 * ✅ Tu paquete de {sender} fue entregado (ID: {packageId}).
+			 */
+			packageDelivered: (arg: { packageId: unknown, sender: unknown }) => LocalizedString
+			/**
+			 * 🔴 Reclamo abierto para tu paquete (ID: {packageId}). Reclamo #{claimId}. El conserje lo revisará pronto.
+			 */
+			claimOpened: (arg: { claimId: unknown, packageId: unknown }) => LocalizedString
+			/**
+			 * ✅ Tu reclamo #{claimId} cambió a: {status}.
+			 */
+			claimStatusChanged: (arg: { claimId: unknown, status: unknown }) => LocalizedString
+			/**
+			 * Tienes una encomienda de {sender} (depto {apartment}) esperando retiro hace {days} día(s). Por favor acércate a conserjería a retirarla.
+			 */
+			packagePendingReminder: (arg: { apartment: unknown, days: unknown, sender: unknown }) => LocalizedString
 		}
 	}
 }

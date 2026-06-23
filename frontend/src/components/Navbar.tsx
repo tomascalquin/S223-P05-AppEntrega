@@ -23,7 +23,7 @@ const Navbar = ({ onToggleMobileNavigation }: NavbarProps) => {
 
   return (
     // # Navbar responsive: apila en mobile y cambia a fila en pantallas mayores.
-    <div className="flex w-full min-w-0 flex-col gap-4 border-b border-white/10 bg-[#252525] p-4 text-white sm:flex-row sm:items-center sm:justify-between">
+    <div className="relative flex w-full min-w-0 flex-col gap-4 border-b border-white/10 bg-[#252525] p-4 text-white sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {user && onToggleMobileNavigation && (
@@ -77,7 +77,7 @@ const Navbar = ({ onToggleMobileNavigation }: NavbarProps) => {
           <button
             onClick={() => setShowNotifications(false)}
             className="absolute right-2 top-2 text-gray-400 hover:text-white"
-            aria-label="Cerrar panel de notificaciones"
+            aria-label={t("notifications.closePanel")}
           >
             ✕
           </button>

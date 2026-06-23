@@ -13,6 +13,8 @@ export interface Notification {
   id: number;
   user_id: number;
   message: string;
+  type: string | null;
+  params: Record<string, string | number> | null;
   read: boolean;
   created_at: string; // ISO 8601 string
 }

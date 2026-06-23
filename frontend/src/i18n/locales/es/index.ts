@@ -458,6 +458,34 @@ const es = {
       delete: 'Error al eliminar el correo.',
     },
   },
+  notifications: {
+    title: 'Notificaciones',
+    summary: '{unread} sin leer • {total} total',
+    allRead: 'Todas leídas',
+    markAllAsRead: 'Marcar todas como leídas',
+    markAsRead: 'Marcar como leída',
+    closeError: 'Cerrar error',
+    closePanel: 'Cerrar panel de notificaciones',
+    unreadAriaLabel: '{count} notificaciones sin leer',
+    empty: {
+      title: 'No hay notificaciones',
+      subtitle: 'Volveremos a contactarte pronto',
+    },
+    loadMore: 'Cargar más notificaciones',
+    noMore: 'No hay más notificaciones',
+    claimStatus: {
+      open: 'abierto',
+      in_review: 'en revisión',
+      closed: 'cerrado',
+    },
+    events: {
+      packageCreated: '📦 Nuevo paquete registrado para {recipientName} (ID: {packageId})',
+      packageDelivered: '✅ Tu paquete de {sender} fue entregado (ID: {packageId}).',
+      claimOpened: '🔴 Reclamo abierto para tu paquete (ID: {packageId}). Reclamo #{claimId}. El conserje lo revisará pronto.',
+      claimStatusChanged: '✅ Tu reclamo #{claimId} cambió a: {status}.',
+      packagePendingReminder: 'Tienes una encomienda de {sender} (depto {apartment}) esperando retiro hace {days} día(s). Por favor acércate a conserjería a retirarla.',
+    },
+  },
 } satisfies BaseTranslation
 
 export default es

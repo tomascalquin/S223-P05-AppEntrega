@@ -33,14 +33,21 @@ export class NotificationService {
   ): Promise<Notification> {
     try {
       const [result] = await db.query<ResultSetHeader>(
-        "INSERT INTO notifications (user_id, message) VALUES (?, ?)",
-        [data.user_id, data.message]
+        "INSERT INTO notifications (user_id, message, type, params) VALUES (?, ?, ?, ?)",
+        [
+          data.user_id,
+          data.message,
+          data.type ?? null,
+          data.params ? JSON.stringify(data.params) : null,
+        ]
       );
 
       return {
         id: result.insertId,
         user_id: data.user_id,
         message: data.message,
+        type: data.type ?? null,
+        params: data.params ?? null,
         read: false,
         created_at: new Date(),
       };
@@ -73,7 +80,7 @@ export class NotificationService {
 
       // Obtener notificaciones con paginación
       const [notifications] = await db.query<RowDataPacket[]>(
-        `SELECT id, user_id, message, \`read\`, created_at
+        `SELECT id, user_id, message, type, params, \`read\`, created_at
          FROM notifications
          WHERE user_id = ?
          ORDER BY created_at DESC
@@ -103,6 +110,8 @@ export class NotificationService {
           id: row.id,
           user_id: row.user_id,
           message: row.message,
+          type: row.type ?? null,
+          params: this.parseParams(row.params),
           read: Boolean(row.read),
           created_at: new Date(row.created_at).toISOString(),
         })
@@ -136,7 +145,7 @@ export class NotificationService {
   ): Promise<NotificationResponse | null> {
     try {
       const [rows] = await db.query<RowDataPacket[]>(
-        "SELECT id, user_id, message, `read`, created_at FROM notifications WHERE id = ?",
+        "SELECT id, user_id, message, type, params, `read`, created_at FROM notifications WHERE id = ?",
         [notificationId]
       );
 
@@ -149,6 +158,8 @@ export class NotificationService {
         id: row.id,
         user_id: row.user_id,
         message: row.message,
+        type: row.type ?? null,
+        params: this.parseParams(row.params),
         read: Boolean(row.read),
         created_at: new Date(row.created_at).toISOString(),
       };
@@ -159,6 +170,29 @@ export class NotificationService {
         }`
       );
     }
+  }
+
+  /**
+   * MÉTODO: parseParams
+   * mysql2 devuelve las columnas JSON ya parseadas, pero algunos drivers/mocks
+   * las entregan como string; este helper soporta ambos casos sin romper.
+   */
+  private static parseParams(
+    rawParams: unknown
+  ): Record<string, string | number> | null {
+    if (!rawParams) {
+      return null;
+    }
+
+    if (typeof rawParams === "string") {
+      try {
+        return JSON.parse(rawParams);
+      } catch {
+        return null;
+      }
+    }
+
+    return rawParams as Record<string, string | number>;
   }
 
   /**

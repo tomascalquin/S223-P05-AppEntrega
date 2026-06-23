@@ -458,6 +458,34 @@ const en = {
       delete: 'Error deleting the email.',
     },
   },
+  notifications: {
+    title: 'Notifications',
+    summary: '{unread} unread • {total} total',
+    allRead: 'All read',
+    markAllAsRead: 'Mark all as read',
+    markAsRead: 'Mark as read',
+    closeError: 'Close error',
+    closePanel: 'Close notifications panel',
+    unreadAriaLabel: '{count} unread notifications',
+    empty: {
+      title: 'No notifications',
+      subtitle: 'We will reach out again soon',
+    },
+    loadMore: 'Load more notifications',
+    noMore: 'No more notifications',
+    claimStatus: {
+      open: 'open',
+      in_review: 'in review',
+      closed: 'closed',
+    },
+    events: {
+      packageCreated: '📦 New package registered for {recipientName} (ID: {packageId})',
+      packageDelivered: '✅ Your package from {sender} was delivered (ID: {packageId}).',
+      claimOpened: '🔴 A claim was opened for your package (ID: {packageId}). Claim #{claimId}. The concierge will review it soon.',
+      claimStatusChanged: '✅ Your claim #{claimId} changed to: {status}.',
+      packagePendingReminder: 'You have a package from {sender} (apt {apartment}) waiting for pickup for {days} day(s). Please pick it up at the front desk.',
+    },
+  },
 } satisfies Translation
 
 export default en

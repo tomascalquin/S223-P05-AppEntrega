@@ -715,6 +715,8 @@ type NotifyResidentPayload = {
   name: string;
   message: string;
   subject: string;
+  type?: string;
+  params?: Record<string, string | number>;
 };
 
 const notifyResident = async ({
@@ -723,11 +725,18 @@ const notifyResident = async ({
   name,
   message,
   subject,
+  type,
+  params,
 }: NotifyResidentPayload) => {
   // # Cada paso es independiente: un correo fallido no debe borrar la notificación
   // # ya guardada, ni viceversa, igual que el resto de los envíos de este archivo.
   try {
-    await NotificationService.createNotification({ user_id: userId, message });
+    await NotificationService.createNotification({
+      user_id: userId,
+      message,
+      type,
+      params,
+    });
   } catch (error) {
     console.error("[Notification] Error creando notificación en BD:", error);
   }
@@ -951,6 +960,8 @@ async function createTables() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
         message VARCHAR(500) NOT NULL,
+        type VARCHAR(50) NULL,
+        params JSON NULL,
         \`read\` BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT fk_notifications_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -960,6 +971,23 @@ async function createTables() {
         INDEX idx_notifications_user_read (user_id, \`read\`)
       )
     `);
+
+    const ensureNotificationColumn = async (columnName: string, definition: string) => {
+      const [rows] = await db.query<RowDataPacket[]>(
+        "SHOW COLUMNS FROM notifications LIKE ?",
+        [columnName]
+      );
+
+      if (rows.length === 0) {
+        await db.query(`ALTER TABLE notifications ADD COLUMN ${definition}`);
+      }
+    };
+
+    // # type/params permiten traducir el mensaje en el frontend según el idioma activo;
+    // # las notificaciones guardadas antes de este cambio quedan sin estas columnas
+    // # y se siguen mostrando con el texto plano original (fallback en el frontend).
+    await ensureNotificationColumn("type", "type VARCHAR(50) NULL");
+    await ensureNotificationColumn("params", "params JSON NULL");
 
     console.log("Tabla 'notifications' creada o ya existe.");
   } catch (error) {
@@ -1198,6 +1226,8 @@ Bun.serve({
             await NotificationService.createNotification({
               user_id: residentUser.id,
               message: `📦 Nuevo paquete registrado para ${recipientName} (ID: ${result.insertId})`,
+              type: "package_created",
+              params: { recipientName, packageId: result.insertId },
             });
           }
         } catch (error) {
@@ -1299,6 +1329,8 @@ Bun.serve({
               name: residentUser.name,
               subject: "Tu encomienda fue entregada",
               message: `✅ Tu paquete de ${deliveredPackage.sender} fue entregado (ID: ${deliveredPackage.id}).`,
+              type: "package_delivered",
+              params: { sender: deliveredPackage.sender, packageId: deliveredPackage.id },
             });
           }
         } catch (error) {
@@ -1722,6 +1754,8 @@ Bun.serve({
             name: auth.user.name,
             subject: `Reclamo #${result.insertId} recibido`,
             message: `🔴 Reclamo abierto para tu paquete (ID: ${packageId}). Reclamo #${result.insertId}. El conserje lo revisará pronto.`,
+            type: "claim_opened",
+            params: { packageId, claimId: result.insertId },
           });
         } catch (error) {
           console.error(
@@ -1901,6 +1935,8 @@ Bun.serve({
             await NotificationService.createNotification({
               user_id: updatedClaim.resident_id,
               message: `✅ Tu reclamo #${updatedClaim.id} cambió a: ${claimStatusLabel[updatedClaim.status]}.`,
+              type: "claim_status_changed",
+              params: { claimId: updatedClaim.id, status: updatedClaim.status },
             });
           } catch (error) {
             console.error(

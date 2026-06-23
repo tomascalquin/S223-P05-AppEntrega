@@ -162,6 +162,12 @@ const notifyPendingPackage = async (
       await NotificationService.createNotification({
         user_id: residentId,
         message,
+        type: "package_pending_reminder",
+        params: {
+          sender: packageItem.sender,
+          apartment: packageItem.apartment_number,
+          days: daysWaiting,
+        },
       });
     } catch (error) {
       console.error(

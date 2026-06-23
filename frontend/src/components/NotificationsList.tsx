@@ -15,12 +15,81 @@
 
 import { useState } from "react";
 import { useNotifications } from "../context/NotificationContext";
+import { useI18n } from "../context/I18nContext";
+import type { Translate } from "../i18n";
+import type { Notification } from "../types/notification";
+
+const claimStatusLabel = (status: string, t: Translate): string => {
+  switch (status) {
+    case "open":
+      return t("notifications.claimStatus.open");
+    case "in_review":
+      return t("notifications.claimStatus.in_review");
+    case "closed":
+      return t("notifications.claimStatus.closed");
+    default:
+      return status;
+  }
+};
+
+/**
+ * Traduce el mensaje de una notificación según su `type`/`params`.
+ * Las notificaciones guardadas antes de agregar i18n no tienen `type`
+ * y se muestran con el texto plano original (`message`) como respaldo.
+ */
+const asString = (value: string | number | undefined): string =>
+  value === undefined ? "" : String(value);
+
+const asNumber = (value: string | number | undefined): number =>
+  value === undefined ? 0 : Number(value);
+
+const renderNotificationMessage = (
+  notification: Notification,
+  t: Translate
+): string => {
+  const params = notification.params;
+
+  if (!notification.type || !params) {
+    return notification.message;
+  }
+
+  switch (notification.type) {
+    case "package_created":
+      return t("notifications.events.packageCreated", {
+        recipientName: asString(params.recipientName),
+        packageId: asNumber(params.packageId),
+      });
+    case "package_delivered":
+      return t("notifications.events.packageDelivered", {
+        sender: asString(params.sender),
+        packageId: asNumber(params.packageId),
+      });
+    case "claim_opened":
+      return t("notifications.events.claimOpened", {
+        packageId: asNumber(params.packageId),
+        claimId: asNumber(params.claimId),
+      });
+    case "claim_status_changed":
+      return t("notifications.events.claimStatusChanged", {
+        claimId: asNumber(params.claimId),
+        status: claimStatusLabel(asString(params.status), t),
+      });
+    case "package_pending_reminder":
+      return t("notifications.events.packagePendingReminder", {
+        sender: asString(params.sender),
+        apartment: asString(params.apartment),
+        days: asNumber(params.days),
+      });
+    default:
+      return notification.message;
+  }
+};
 
 /**
  * COMPONENTE: NotificationsList
- * 
+ *
  * Muestra lista de notificaciones con interactividad
- * 
+ *
  * @returns JSX Element con la lista de notificaciones
  */
 const NotificationsList = () => {
@@ -35,8 +104,15 @@ const NotificationsList = () => {
     loadMoreNotifications,
     clearError,
   } = useNotifications();
+  const { t, formatDate } = useI18n();
 
   const [markingAsRead, setMarkingAsRead] = useState<Set<number>>(new Set());
+
+  // # El panel solo muestra pendientes: una vez marcada como leída (individual
+  // # o con "marcar todas"), la notificación se limpia de la vista de inmediato.
+  const visibleNotifications = notifications.filter(
+    (notification) => !notification.read
+  );
 
   /**
    * MANEJADOR: Marcar notificación como leída
@@ -85,7 +161,7 @@ const NotificationsList = () => {
   };
 
   // ESTADO: Sin notificaciones
-  if (!isLoading && notifications.length === 0) {
+  if (!isLoading && visibleNotifications.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-white/5 px-6 py-12 text-center">
         <svg
@@ -101,9 +177,9 @@ const NotificationsList = () => {
             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
-        <p className="text-gray-400">No hay notificaciones</p>
+        <p className="text-gray-400">{t("notifications.empty.title")}</p>
         <p className="mt-1 text-sm text-gray-500">
-          Volveremos a contactarte pronto
+          {t("notifications.empty.subtitle")}
         </p>
       </div>
     );
@@ -114,17 +190,14 @@ const NotificationsList = () => {
       {/* ENCABEZADO CON TÍTULO Y BOTÓN DE MARCAR COMO LEÍDAS */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-white">Notificaciones</h2>
+          <h2 className="text-lg font-semibold text-white">{t("notifications.title")}</h2>
           <p className="text-sm text-gray-400">
-            {unreadCount > 0 ? (
-              <>
-                {unreadCount} sin leer
-                {" • "}
-                {notifications.length} total
-              </>
-            ) : (
-              "Todas leídas"
-            )}
+            {unreadCount > 0
+              ? t("notifications.summary", {
+                  unread: unreadCount,
+                  total: visibleNotifications.length,
+                })
+              : t("notifications.allRead")}
           </p>
         </div>
 
@@ -133,10 +206,10 @@ const NotificationsList = () => {
           <button
             onClick={handleMarkAllAsRead}
             disabled={isLoading}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-50"
-            title="Marcar todas como leídas"
+            className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-blue-500 disabled:opacity-50"
+            title={t("notifications.markAllAsRead")}
           >
-            Marcar todas como leídas
+            {t("notifications.markAllAsRead")}
           </button>
         )}
       </div>
@@ -149,7 +222,7 @@ const NotificationsList = () => {
             <button
               onClick={clearError}
               className="text-red-400 hover:text-red-300"
-              aria-label="Cerrar error"
+              aria-label={t("notifications.closeError")}
             >
               ✕
             </button>
@@ -159,27 +232,19 @@ const NotificationsList = () => {
 
       {/* LISTA DE NOTIFICACIONES */}
       <div className="space-y-2">
-        {notifications.map((notification) => (
+        {visibleNotifications.map((notification) => (
           <div
             key={notification.id}
-            className={`rounded-lg border transition-all ${
-              notification.read
-                ? "border-white/5 bg-white/5"
-                : "border-blue-500/30 bg-blue-500/10"
-            } ${
+            className={`rounded-lg border border-blue-500/30 bg-blue-500/10 transition-all ${
               markingAsRead.has(notification.id)
                 ? "opacity-50"
                 : "opacity-100"
             } cursor-pointer p-4 hover:bg-white/10`}
-            onClick={() => {
-              if (!notification.read) {
-                handleMarkAsRead(notification.id);
-              }
-            }}
+            onClick={() => handleMarkAsRead(notification.id)}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !notification.read) {
+              if (e.key === "Enter") {
                 handleMarkAsRead(notification.id);
               }
             }}
@@ -187,81 +252,54 @@ const NotificationsList = () => {
             {/* CONTENIDO DE LA NOTIFICACIÓN */}
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                {/* INDICADOR DE LEÍDA/SIN LEER */}
+                {/* INDICADOR DE SIN LEER */}
                 <div className="mb-2 flex items-center gap-2">
-                  {!notification.read && (
-                    <div className="h-2 w-2 rounded-full bg-blue-500" />
-                  )}
-                  <span
-                    className={`text-xs ${
-                      notification.read
-                        ? "text-gray-500"
-                        : "text-gray-400"
-                    }`}
-                  >
-                    {new Date(notification.created_at).toLocaleDateString(
-                      "es-ES",
-                      {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }
-                    )}
+                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                  <span className="text-xs text-gray-400">
+                    {formatDate(notification.created_at, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </span>
                 </div>
 
                 {/* MENSAJE */}
                 <p
-                  className={`text-sm leading-relaxed break-words ${
-                    notification.read ? "text-gray-400" : "text-white"
-                  } ${markingAsRead.has(notification.id) ? "line-through" : ""}`}
+                  className={`text-sm leading-relaxed break-words text-white ${
+                    markingAsRead.has(notification.id) ? "line-through" : ""
+                  }`}
                 >
-                  {notification.message}
+                  {renderNotificationMessage(notification, t)}
                 </p>
               </div>
 
-              {/* INDICADOR DE ESTADO */}
-              {notification.read ? (
-                <div className="flex-shrink-0 text-gray-500" title="Leída">
-                  <svg
-                    className="h-5 w-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-              ) : (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleMarkAsRead(notification.id);
-                  }}
-                  className="flex-shrink-0 rounded-full bg-blue-600 p-2 text-white transition hover:bg-blue-500 disabled:opacity-50"
-                  disabled={markingAsRead.has(notification.id)}
-                  title="Marcar como leída"
+              {/* BOTÓN: Marcar como leída (la limpia de la lista) */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMarkAsRead(notification.id);
+                }}
+                className="flex-shrink-0 rounded-full bg-blue-600 p-2 text-white transition hover:bg-blue-500 disabled:opacity-50"
+                disabled={markingAsRead.has(notification.id)}
+                title={t("notifications.markAsRead")}
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </button>
-              )}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </button>
             </div>
           </div>
         ))}
@@ -280,14 +318,14 @@ const NotificationsList = () => {
           onClick={handleLoadMore}
           className="w-full rounded-lg border border-white/10 bg-white/5 py-3 text-sm font-medium text-gray-400 transition hover:bg-white/10 hover:text-white"
         >
-          Cargar más notificaciones
+          {t("notifications.loadMore")}
         </button>
       )}
 
       {/* MENSAJE: Todas cargadas */}
       {!hasMore && notifications.length > 0 && (
         <p className="text-center text-xs text-gray-500">
-          No hay más notificaciones
+          {t("notifications.noMore")}
         </p>
       )}
     </div>

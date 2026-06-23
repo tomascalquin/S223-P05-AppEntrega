@@ -12,6 +12,7 @@
  */
 
 import { useNotifications } from "../context/NotificationContext";
+import { useI18n } from "../context/I18nContext";
 
 interface NotificationBadgeProps {
   /** Callback cuando se hace click en el badge */
@@ -34,18 +35,15 @@ const NotificationBadge = ({
   className = "",
 }: NotificationBadgeProps) => {
   const { unreadCount } = useNotifications();
-
-  // No mostrar el badge si no hay notificaciones sin leer
-  if (unreadCount === 0) {
-    return null;
-  }
+  const { t } = useI18n();
+  const unreadLabel = t("notifications.unreadAriaLabel", { count: unreadCount });
 
   return (
     <button
       onClick={onClick}
       className={`relative inline-flex items-center justify-center ${className}`}
-      aria-label={`${unreadCount} notificaciones sin leer`}
-      title={`${unreadCount} notificaciones sin leer`}
+      aria-label={unreadLabel}
+      title={unreadLabel}
     >
       {/* ICONO DE CAMPANA */}
       <div className="text-white transition-colors hover:text-gray-300">
@@ -66,14 +64,16 @@ const NotificationBadge = ({
       </div>
 
       {/* BADGE CON CONTADOR */}
-      <span
-        className={`absolute right-0 top-0 inline-flex items-center justify-center
-          h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold
-          transform -translate-y-2 translate-x-2
-          animation-in fade-in-0 duration-200`}
-      >
-        {unreadCount > 99 ? "99+" : unreadCount}
-      </span>
+      {unreadCount > 0 && (
+        <span
+          className={`absolute right-0 top-0 inline-flex items-center justify-center
+            h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold
+            transform -translate-y-2 translate-x-2
+            animation-in fade-in-0 duration-200`}
+        >
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
     </button>
   );
 };

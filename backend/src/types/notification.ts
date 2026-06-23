@@ -13,6 +13,8 @@ export interface Notification {
   id: number;
   user_id: number;
   message: string;
+  type: string | null;
+  params: Record<string, string | number> | null;
   read: boolean;
   created_at: Date;
 }
@@ -20,10 +22,16 @@ export interface Notification {
 /**
  * INTERFAZ: CreateNotificationDto
  * Datos requeridos para crear una nueva notificación
+ *
+ * `message` se guarda como texto de respaldo (fallback si el frontend no
+ * conoce `type`). `type`/`params` son lo que el frontend usa para traducir
+ * el mensaje según el idioma activo.
  */
 export interface CreateNotificationDto {
   user_id: number;
   message: string;
+  type?: string;
+  params?: Record<string, string | number>;
 }
 
 /**
