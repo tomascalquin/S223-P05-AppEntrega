@@ -4,17 +4,22 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { OAuth2Client } from "google-auth-library";
+import { randomBytes } from "crypto";
+import nodemailer from "nodemailer";
+import QRCode from "qrcode";
 
 type PackageStatus = "received" | "delivered" | "pending";
 
 type PackageRow = RowDataPacket & {
   id: number;
   recipient_name: string;
+  recipient_email: string;
   apartment_number: string;
   description: string | null;
   sender: string;
   delivery_date: string | null;
   status: PackageStatus;
+  retrieval_code: string | null;
   created_at: string;
   retrieved_at: string | null;
 };
@@ -79,6 +84,14 @@ const allowedStatuses = new Set<PackageStatus>([
 const PORT = Number(process.env.PORT || 3001);
 const JWT_SECRET = process.env.JWT_SECRET?.trim() ?? "";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
+// # Configuración SMTP usada únicamente para enviar el QR de retiro al correo del residente.
+// # Si queda incompleta, el paquete igual se registra y solo se omite el envío del correo.
+const SMTP_HOST = process.env.SMTP_HOST?.trim() ?? "";
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USER?.trim() ?? "";
+const SMTP_PASSWORD = process.env.SMTP_PASSWORD?.trim() ?? "";
+const SMTP_FROM = process.env.SMTP_FROM?.trim() || SMTP_USER;
+const SMTP_SECURE = process.env.SMTP_SECURE === "true";
 const OTP_LENGTH = 6;
 const OTP_EXPIRATION_MINUTES = 5;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -131,9 +144,39 @@ const normalizeIdentifier = (value: string) => {
   return value.trim().toLowerCase();
 };
 
+const normalizeEmail = (value: string) => {
+  // # Guardamos correos en minúsculas para evitar duplicidades visuales por mayúsculas.
+  return value.trim().toLowerCase();
+};
+
+const isEmail = (value: string) => {
+  // # Validación simple de formato: suficiente para bloquear entradas claramente inválidas antes de SMTP.
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+};
+
+const escapeHtml = (value: string) => {
+  // # El correo HTML usa datos ingresados por el conserje, por eso escapamos caracteres especiales.
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
 const parsePackageId = (pathname: string) => {
   const id = Number(pathname.split("/").pop());
   return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const normalizeRetrievalCode = (value: unknown) => {
+  // # Aunque el QR lo genera el sistema, normalizamos por seguridad antes de consultar la base.
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalizedValue = value.trim().toUpperCase();
+  return normalizedValue ? normalizedValue : null;
 };
 
 const isPackageStatus = (value: unknown): value is PackageStatus => {
@@ -367,12 +410,124 @@ const getPackageById = async (id: number) => {
   return rows[0] ?? null;
 };
 
+const createRetrievalCodeCandidate = () => {
+  // # Este identificador viaja dentro del QR; usamos un alfabeto sin caracteres ambiguos.
+  // # No se muestra como flujo principal al usuario: solo sirve como payload interno del QR.
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = randomBytes(8);
+
+  return Array.from(bytes)
+    .map((byte) => alphabet[byte % alphabet.length])
+    .join("");
+};
+
+const generateUniqueRetrievalCode = async () => {
+  // # Consultamos la base antes de usar el valor y dejamos el índice UNIQUE como respaldo.
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const code = createRetrievalCodeCandidate();
+    const [rows] = await db.query<RowDataPacket[]>(
+      "SELECT id FROM packages WHERE retrieval_code = ? LIMIT 1",
+      [code]
+    );
+
+    if (rows.length === 0) {
+      return code;
+    }
+  }
+
+  throw new Error("No se pudo generar un identificador único de retiro");
+};
+
+const isMailConfigured = () => {
+  return Boolean(SMTP_HOST && SMTP_PORT && SMTP_FROM);
+};
+
+const createMailTransport = () => {
+  // # Se crea al momento de enviar para evitar conexiones SMTP innecesarias al iniciar el backend.
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+    auth:
+      SMTP_USER && SMTP_PASSWORD
+        ? {
+            user: SMTP_USER,
+            pass: SMTP_PASSWORD,
+          }
+        : undefined,
+  });
+};
+
+type RetrievalEmailPayload = {
+  recipientName: string;
+  recipientEmail: string;
+  apartmentNumber: string;
+  sender: string;
+  retrievalCode: string;
+};
+
+const sendRetrievalQrEmail = async ({
+  recipientName,
+  recipientEmail,
+  apartmentNumber,
+  sender,
+  retrievalCode,
+}: RetrievalEmailPayload) => {
+  if (!isMailConfigured()) {
+    // # En desarrollo permitimos registrar la encomienda aunque no haya SMTP configurado.
+    console.warn(`[Mail] SMTP no configurado. QR no enviado a ${recipientEmail}.`);
+    return false;
+  }
+
+  // # El QR contiene solo el identificador de retiro; el backend decide si sigue activo.
+  const qrBuffer = await QRCode.toBuffer(retrievalCode, {
+    errorCorrectionLevel: "M",
+    margin: 2,
+    width: 260,
+  });
+
+  const safeRecipientName = escapeHtml(recipientName);
+  const safeApartmentNumber = escapeHtml(apartmentNumber);
+  const safeSender = escapeHtml(sender);
+
+  // # El QR va embebido con cid para que el residente lo pueda abrir desde el correo
+  // # sin depender de enlaces externos ni de entrar a la aplicación.
+  await createMailTransport().sendMail({
+    from: SMTP_FROM,
+    to: recipientEmail,
+    subject: "QR para retirar tu encomienda",
+    text:
+      `Hola ${recipientName},\n\n` +
+      `Tienes una encomienda registrada de ${sender} para el departamento ${apartmentNumber}.\n` +
+      "Presenta el QR adjunto al conserje para retirarla.",
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #111827;">
+        <h2>Tu encomienda ya fue registrada</h2>
+        <p>Hola ${safeRecipientName}, tienes una encomienda de <strong>${safeSender}</strong> para el departamento <strong>${safeApartmentNumber}</strong>.</p>
+        <p>Presenta este QR al conserje para retirar tu encomienda.</p>
+        <p><img src="cid:retrieval-qr" alt="QR de retiro" style="width: 220px; height: 220px;" /></p>
+      </div>
+    `,
+    attachments: [
+      {
+        filename: "qr-retiro.png",
+        content: qrBuffer,
+        cid: "retrieval-qr",
+      },
+    ],
+  });
+
+  return true;
+};
+
 async function createTables() {
   try {
     await db.query(`
       CREATE TABLE IF NOT EXISTS packages (
         id INT AUTO_INCREMENT PRIMARY KEY,
         recipient_name VARCHAR(255) NOT NULL,
+        -- # Correo destino del QR; se solicita al conserje al registrar la encomienda.
+        recipient_email VARCHAR(255) NOT NULL DEFAULT '',
         apartment_number VARCHAR(50) NOT NULL,
         description TEXT,
         sender VARCHAR(255) NOT NULL,
@@ -380,6 +535,9 @@ async function createTables() {
         status ENUM('received', 'delivered', 'pending') DEFAULT 'received',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         retrieved_at TIMESTAMP NULL
+        -- # Payload interno del QR. NULL significa que el QR ya no sirve para retirar.
+        retrieval_code VARCHAR(32) NULL UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -400,6 +558,10 @@ async function createTables() {
       "apartment_number",
       "apartment_number VARCHAR(50) NOT NULL DEFAULT 'N/A'"
     );
+    await ensureColumn(
+      "recipient_email",
+      "recipient_email VARCHAR(255) NOT NULL DEFAULT ''"
+    );
     await ensureColumn("description", "description TEXT NULL");
     await ensureColumn(
       "sender",
@@ -410,6 +572,7 @@ async function createTables() {
       "status",
       "status ENUM('received', 'delivered', 'pending') DEFAULT 'received'"
     );
+    await ensureColumn("retrieval_code", "retrieval_code VARCHAR(32) NULL");
     await ensureColumn(
       "created_at",
       "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
@@ -417,6 +580,30 @@ async function createTables() {
     // # Guarda la fecha y hora exacta en que el residente retiró la encomienda,
     // # para auditoría e historial. Queda NULL hasta que se marca como entregada.
     await ensureColumn("retrieved_at", "retrieved_at TIMESTAMP NULL");
+
+    // # El índice único impide que dos encomiendas activas compartan el mismo identificador QR.
+    const [retrievalCodeIndexes] = await db.query<RowDataPacket[]>(
+      "SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'packages' AND COLUMN_NAME = 'retrieval_code' AND NON_UNIQUE = 0"
+    );
+
+    if (retrievalCodeIndexes.length === 0) {
+      await db.query(
+        "ALTER TABLE packages ADD UNIQUE KEY uq_packages_retrieval_code (retrieval_code)"
+      );
+    }
+
+    // # Los paquetes antiguos no entregados reciben identificador para poder usar el flujo QR.
+    const [packagesWithoutCode] = await db.query<PackageRow[]>(
+      "SELECT * FROM packages WHERE retrieval_code IS NULL AND status <> 'delivered'"
+    );
+
+    for (const packageItem of packagesWithoutCode) {
+      const retrievalCode = await generateUniqueRetrievalCode();
+      await db.query(
+        "UPDATE packages SET retrieval_code = ? WHERE id = ?",
+        [retrievalCode, packageItem.id]
+      );
+    }
 
     console.log("Tabla 'packages' creada o ya existe.");
 
@@ -637,6 +824,7 @@ Bun.serve({
         const body = (await request.json()) as Record<string, unknown>;
 
         const recipientName = getRequiredString(body.recipient_name);
+        const recipientEmail = getRequiredString(body.recipient_email);
         const apartmentNumber = getRequiredString(body.apartment_number);
         const sender = getRequiredString(body.sender);
         const description = getOptionalString(body.description);
@@ -646,6 +834,22 @@ Bun.serve({
         if (!recipientName) {
           return jsonResponse(
             { error: "recipient_name es requerido" },
+            { status: 400 }
+          );
+        }
+
+        if (!recipientEmail) {
+          return jsonResponse(
+            { error: "recipient_email es requerido" },
+            { status: 400 }
+          );
+        }
+
+        const normalizedRecipientEmail = normalizeEmail(recipientEmail);
+
+        if (!isEmail(normalizedRecipientEmail)) {
+          return jsonResponse(
+            { error: "recipient_email debe ser un correo válido" },
             { status: 400 }
           );
         }
@@ -668,15 +872,22 @@ Bun.serve({
           );
         }
 
+        const retrievalCode =
+          status === "delivered" ? null : await generateUniqueRetrievalCode();
+
+        // # Guardamos el identificador junto al paquete antes de enviar el correo.
+        // # Así el QR enviado por email apunta a un registro ya existente y verificable.
         const [result] = await db.query<ResultSetHeader>(
-          "INSERT INTO packages (recipient_name, apartment_number, description, sender, delivery_date, status) VALUES (?, ?, ?, ?, ?, ?)",
+          "INSERT INTO packages (recipient_name, recipient_email, apartment_number, description, sender, delivery_date, status, retrieval_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
           [
             recipientName,
+            normalizedRecipientEmail,
             apartmentNumber,
             description,
             sender,
             deliveryDate,
             status,
+            retrievalCode,
           ]
         );
 
@@ -689,15 +900,115 @@ Bun.serve({
           );
         }
 
+        let retrievalEmailSent = false;
+        let retrievalEmailWarning: string | null = null;
+
+        if (retrievalCode) {
+          try {
+            // # El correo se envía después del INSERT para no mandar QRs de paquetes no guardados.
+            retrievalEmailSent = await sendRetrievalQrEmail({
+              recipientName,
+              recipientEmail: normalizedRecipientEmail,
+              apartmentNumber,
+              sender,
+              retrievalCode,
+            });
+          } catch (error) {
+            // # No revertimos el registro si falla el correo: el paquete ya quedó guardado.
+            console.error("[Mail] Error enviando QR de retiro:", error);
+            retrievalEmailWarning =
+              "La encomienda fue registrada, pero no se pudo enviar el correo con el QR.";
+          }
+        }
+
         return jsonResponse({
-          message: "Paquete insertado exitosamente",
+          message: retrievalEmailWarning ?? "Paquete insertado exitosamente",
           id: result.insertId,
           package: createdPackage,
+          retrieval_email_sent: retrievalEmailSent,
+          retrieval_email_warning: retrievalEmailWarning,
         });
       } catch (error) {
         return jsonResponse(
           {
             message: "Error insertando paquete",
+            error: String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (method === "POST" && url.pathname === "/api/packages/verify-code") {
+      try {
+        const auth = ensureAuthenticatedRequest(request);
+
+        if (auth.response) {
+          return auth.response;
+        }
+
+        const roleResponse = ensureRoleAccess(auth.user, "conserje");
+
+        if (roleResponse) {
+          return roleResponse;
+        }
+
+        const body = (await request.json()) as Record<string, unknown>;
+        // # El lector QR entrega el texto embebido en la imagen; ese texto debe coincidir con retrieval_code.
+        const retrievalCode = normalizeRetrievalCode(body.retrieval_code);
+
+        if (!retrievalCode) {
+          return jsonResponse(
+            { error: "Ingresa un QR de retiro válido." },
+            { status: 400 }
+          );
+        }
+
+        // # Solo un retrieval_code activo permite entregar; al entregar queda en NULL.
+        const [rows] = await db.query<PackageRow[]>(
+          "SELECT * FROM packages WHERE retrieval_code = ? LIMIT 1",
+          [retrievalCode]
+        );
+
+        const packageItem = rows[0] ?? null;
+
+        if (!packageItem) {
+          return jsonResponse(
+            { error: "QR inexistente o ya utilizado." },
+            { status: 404 }
+          );
+        }
+
+        const [result] = await db.query<ResultSetHeader>(
+          // # Esta actualización atómica entrega el paquete e invalida el QR en la misma operación.
+          "UPDATE packages SET status = 'delivered', delivery_date = COALESCE(delivery_date, NOW()), retrieval_code = NULL WHERE id = ? AND retrieval_code = ?",
+          [packageItem.id, retrievalCode]
+        );
+
+        if (result.affectedRows === 0) {
+          return jsonResponse(
+            { error: "QR inexistente o ya utilizado." },
+            { status: 404 }
+          );
+        }
+
+        const deliveredPackage = await getPackageById(packageItem.id);
+
+        if (!deliveredPackage) {
+          return jsonResponse(
+            { message: "No se pudo recuperar el paquete entregado" },
+            { status: 500 }
+          );
+        }
+
+        return jsonResponse({
+          message: "QR validado. Paquete marcado como entregado.",
+          package: deliveredPackage,
+        });
+      } catch (error) {
+        return jsonResponse(
+          {
+            message: "Error validando QR de retiro",
             error: String(error),
           },
           { status: 500 }
@@ -799,6 +1110,29 @@ Bun.serve({
           values.push(recipientName);
         }
 
+        if (hasOwn(body, "recipient_email")) {
+          const recipientEmail = getRequiredString(body.recipient_email);
+
+          if (!recipientEmail) {
+            return jsonResponse(
+              { error: "recipient_email no puede estar vacío" },
+              { status: 400 }
+            );
+          }
+
+          const normalizedRecipientEmail = normalizeEmail(recipientEmail);
+
+          if (!isEmail(normalizedRecipientEmail)) {
+            return jsonResponse(
+              { error: "recipient_email debe ser un correo válido" },
+              { status: 400 }
+            );
+          }
+
+          updates.push("recipient_email = ?");
+          values.push(normalizedRecipientEmail);
+        }
+
         if (hasOwn(body, "apartment_number")) {
           const apartmentNumber = getRequiredString(body.apartment_number);
 
@@ -848,10 +1182,9 @@ Bun.serve({
           updates.push("status = ?");
           values.push(body.status);
 
-          // # Registramos la fecha y hora exacta del retiro solo en la transición
-          // # hacia 'delivered'; así no se pisa el valor si ya estaba entregado.
-          if (body.status === "delivered" && existingPackage.status !== "delivered") {
-            updates.push("retrieved_at = NOW()");
+          if (body.status === "delivered") {
+            // # Cualquier entrega manual también invalida el QR para impedir reuso.
+            updates.push("retrieval_code = NULL");
           }
         }
 

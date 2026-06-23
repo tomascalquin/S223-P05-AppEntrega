@@ -774,6 +774,10 @@ type RootTranslation = {
 			 */
 			recipient: string
 			/**
+			 * C​o​r​r​e​o​ ​r​e​s​i​d​e​n​t​e​ ​*
+			 */
+			recipientEmail: string
+			/**
 			 * D​e​p​a​r​t​a​m​e​n​t​o​ ​*
 			 */
 			apartment: string
@@ -795,6 +799,10 @@ type RootTranslation = {
 			 * E​j​:​ ​C​a​m​i​l​a​ ​S​o​t​o
 			 */
 			recipient: string
+			/**
+			 * E​j​:​ ​c​a​m​i​l​a​@​e​n​c​o​m​b​o​x​.​c​l
+			 */
+			recipientEmail: string
 			/**
 			 * E​j​:​ ​1​0​1​ ​o​ ​A​-​1​2
 			 */
@@ -833,6 +841,16 @@ type RootTranslation = {
 				 * E​l​ ​n​o​m​b​r​e​ ​d​e​l​ ​r​e​s​i​d​e​n​t​e​ ​e​s​ ​o​b​l​i​g​a​t​o​r​i​o​.
 				 */
 				required: string
+			}
+			recipientEmail: {
+				/**
+				 * E​l​ ​c​o​r​r​e​o​ ​d​e​l​ ​r​e​s​i​d​e​n​t​e​ ​e​s​ ​o​b​l​i​g​a​t​o​r​i​o​ ​p​a​r​a​ ​e​n​v​i​a​r​ ​e​l​ ​Q​R​.
+				 */
+				required: string
+				/**
+				 * I​n​g​r​e​s​a​ ​u​n​ ​c​o​r​r​e​o​ ​v​á​l​i​d​o​ ​p​a​r​a​ ​e​n​v​i​a​r​ ​e​l​ ​Q​R​.
+				 */
+				invalid: string
 			}
 			apartment: {
 				/**
@@ -898,6 +916,62 @@ type RootTranslation = {
 		 * R​e​g​i​s​t​r​a​n​d​o​.​.​.
 		 */
 		submitting: string
+		verify: {
+			/**
+			 * V​e​r​i​f​i​c​a​r​ ​Q​R​ ​d​e​ ​r​e​t​i​r​o
+			 */
+			title: string
+			/**
+			 * E​s​c​a​n​e​a​ ​e​l​ ​Q​R​ ​q​u​e​ ​r​e​c​i​b​i​ó​ ​e​l​ ​r​e​s​i​d​e​n​t​e​ ​p​o​r​ ​c​o​r​r​e​o​.​ ​S​i​ ​e​s​ ​v​á​l​i​d​o​,​ ​l​a​ ​e​n​c​o​m​i​e​n​d​a​ ​s​e​ ​m​a​r​c​a​r​á​ ​c​o​m​o​ ​e​n​t​r​e​g​a​d​a​.
+			 */
+			description: string
+			/**
+			 * L​a​ ​e​n​c​o​m​i​e​n​d​a​ ​d​e​ ​{​r​e​c​i​p​i​e​n​t​}​ ​f​u​e​ ​v​a​l​i​d​a​d​a​ ​y​ ​e​n​t​r​e​g​a​d​a​.
+			 * @param {unknown} recipient
+			 */
+			success: RequiredParams<'recipient'>
+			/**
+			 * N​o​ ​s​e​ ​p​u​d​o​ ​v​a​l​i​d​a​r​ ​e​l​ ​Q​R​ ​d​e​ ​r​e​t​i​r​o​.
+			 */
+			error: string
+			scanner: {
+				/**
+				 * E​s​c​a​n​e​a​r​ ​Q​R
+				 */
+				start: string
+				/**
+				 * D​e​t​e​n​e​r​ ​c​á​m​a​r​a
+				 */
+				stop: string
+				/**
+				 * A​p​u​n​t​a​ ​l​a​ ​c​á​m​a​r​a​ ​a​l​ ​Q​R​ ​q​u​e​ ​r​e​c​i​b​i​ó​ ​e​l​ ​r​e​s​i​d​e​n​t​e​ ​e​n​ ​s​u​ ​c​o​r​r​e​o​.
+				 */
+				help: string
+				/**
+				 * N​o​ ​s​e​ ​p​u​d​o​ ​i​n​i​c​i​a​r​ ​l​a​ ​c​á​m​a​r​a​ ​p​a​r​a​ ​e​s​c​a​n​e​a​r​ ​e​l​ ​Q​R​.​ ​R​e​v​i​s​a​ ​p​e​r​m​i​s​o​s​ ​e​ ​i​n​t​e​n​t​a​ ​n​u​e​v​a​m​e​n​t​e​.
+				 */
+				error: string
+			}
+			/**
+			 * R​e​t​i​r​o​ ​c​o​n​f​i​r​m​a​d​o
+			 */
+			resultTitle: string
+			/**
+			 * R​e​s​i​d​e​n​t​e​:​ ​{​r​e​c​i​p​i​e​n​t​}
+			 * @param {unknown} recipient
+			 */
+			resultRecipient: RequiredParams<'recipient'>
+			/**
+			 * D​e​p​a​r​t​a​m​e​n​t​o​:​ ​{​a​p​a​r​t​m​e​n​t​}
+			 * @param {unknown} apartment
+			 */
+			resultApartment: RequiredParams<'apartment'>
+			/**
+			 * R​e​m​i​t​e​n​t​e​:​ ​{​s​e​n​d​e​r​}
+			 * @param {unknown} sender
+			 */
+			resultSender: RequiredParams<'sender'>
+		}
 	}
 	residente: {
 		/**
@@ -2009,6 +2083,10 @@ export type TranslationFunctions = {
 			 */
 			recipient: () => LocalizedString
 			/**
+			 * Correo residente *
+			 */
+			recipientEmail: () => LocalizedString
+			/**
 			 * Departamento *
 			 */
 			apartment: () => LocalizedString
@@ -2030,6 +2108,10 @@ export type TranslationFunctions = {
 			 * Ej: Camila Soto
 			 */
 			recipient: () => LocalizedString
+			/**
+			 * Ej: camila@encombox.cl
+			 */
+			recipientEmail: () => LocalizedString
 			/**
 			 * Ej: 101 o A-12
 			 */
@@ -2067,6 +2149,16 @@ export type TranslationFunctions = {
 				 * El nombre del residente es obligatorio.
 				 */
 				required: () => LocalizedString
+			}
+			recipientEmail: {
+				/**
+				 * El correo del residente es obligatorio para enviar el QR.
+				 */
+				required: () => LocalizedString
+				/**
+				 * Ingresa un correo válido para enviar el QR.
+				 */
+				invalid: () => LocalizedString
 			}
 			apartment: {
 				/**
@@ -2131,6 +2223,58 @@ export type TranslationFunctions = {
 		 * Registrando...
 		 */
 		submitting: () => LocalizedString
+		verify: {
+			/**
+			 * Verificar QR de retiro
+			 */
+			title: () => LocalizedString
+			/**
+			 * Escanea el QR que recibió el residente por correo. Si es válido, la encomienda se marcará como entregada.
+			 */
+			description: () => LocalizedString
+			/**
+			 * La encomienda de {recipient} fue validada y entregada.
+			 */
+			success: (arg: { recipient: unknown }) => LocalizedString
+			/**
+			 * No se pudo validar el QR de retiro.
+			 */
+			error: () => LocalizedString
+			scanner: {
+				/**
+				 * Escanear QR
+				 */
+				start: () => LocalizedString
+				/**
+				 * Detener cámara
+				 */
+				stop: () => LocalizedString
+				/**
+				 * Apunta la cámara al QR que recibió el residente en su correo.
+				 */
+				help: () => LocalizedString
+				/**
+				 * No se pudo iniciar la cámara para escanear el QR. Revisa permisos e intenta nuevamente.
+				 */
+				error: () => LocalizedString
+			}
+			/**
+			 * Retiro confirmado
+			 */
+			resultTitle: () => LocalizedString
+			/**
+			 * Residente: {recipient}
+			 */
+			resultRecipient: (arg: { recipient: unknown }) => LocalizedString
+			/**
+			 * Departamento: {apartment}
+			 */
+			resultApartment: (arg: { apartment: unknown }) => LocalizedString
+			/**
+			 * Remitente: {sender}
+			 */
+			resultSender: (arg: { sender: unknown }) => LocalizedString
+		}
 	}
 	residente: {
 		/**

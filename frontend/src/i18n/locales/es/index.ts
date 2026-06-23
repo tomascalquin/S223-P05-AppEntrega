@@ -255,6 +255,7 @@ const es = {
     title: 'Registrar encomienda',
     field: {
       recipient: 'Nombre residente *',
+      recipientEmail: 'Correo residente *',
       apartment: 'Departamento *',
       sender: 'Remitente *',
       deliveryDate: 'Fecha de entrega *',
@@ -262,6 +263,7 @@ const es = {
     },
     placeholder: {
       recipient: 'Ej: Camila Soto',
+      recipientEmail: 'Ej: camila@encombox.cl',
       apartment: 'Ej: 101 o A-12',
       sender: 'Ej: Mercado Libre',
     },
@@ -275,6 +277,10 @@ const es = {
     validation: {
       recipient: {
         required: 'El nombre del residente es obligatorio.',
+      },
+      recipientEmail: {
+        required: 'El correo del residente es obligatorio para enviar el QR.',
+        invalid: 'Ingresa un correo válido para enviar el QR.',
       },
       apartment: {
         required: 'El departamento es obligatorio.',
@@ -300,6 +306,22 @@ const es = {
     },
     submit: 'Registrar encomienda',
     submitting: 'Registrando...',
+    verify: {
+      title: 'Verificar QR de retiro',
+      description: 'Escanea el QR que recibió el residente por correo. Si es válido, la encomienda se marcará como entregada.',
+      success: 'La encomienda de {recipient} fue validada y entregada.',
+      error: 'No se pudo validar el QR de retiro.',
+      scanner: {
+        start: 'Escanear QR',
+        stop: 'Detener cámara',
+        help: 'Apunta la cámara al QR que recibió el residente en su correo.',
+        error: 'No se pudo iniciar la cámara para escanear el QR. Revisa permisos e intenta nuevamente.',
+      },
+      resultTitle: 'Retiro confirmado',
+      resultRecipient: 'Residente: {recipient}',
+      resultApartment: 'Departamento: {apartment}',
+      resultSender: 'Remitente: {sender}',
+    },
   },
   residente: {
     title: 'Mis encomiendas',

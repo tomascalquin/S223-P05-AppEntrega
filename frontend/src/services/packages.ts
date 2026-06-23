@@ -5,17 +5,23 @@ export type PackageStatus = "received" | "delivered" | "pending";
 export type PackageItem = {
   id: number;
   recipient_name: string;
+  // # Email donde el backend envía el QR de retiro al registrar la encomienda.
+  recipient_email: string;
   apartment_number: string;
   description: string | null;
   sender: string;
   delivery_date: string | null;
   status: PackageStatus;
+  // # Payload interno del QR; queda null cuando el paquete ya fue entregado.
+  retrieval_code: string | null;
   created_at: string;
   retrieved_at: string | null;
 };
 
 export type CreatePackagePayload = {
   recipient_name: string;
+  // # El conserje lo ingresa para que el residente reciba el QR por correo.
+  recipient_email: string;
   apartment_number: string;
   sender: string;
   delivery_date: string;
@@ -25,6 +31,7 @@ export type CreatePackagePayload = {
 
 export type UpdatePackagePayload = {
   recipient_name?: string;
+  recipient_email?: string;
   apartment_number?: string;
   sender?: string;
   delivery_date?: string | null;
@@ -46,6 +53,12 @@ type PackageCollectionResponse = {
 
 type PackageMutationResponse = {
   id: number;
+  package: PackageItem;
+  message?: string;
+};
+
+type PackageVerificationResponse = {
+  // # Paquete ya marcado como entregado después de validar el QR.
   package: PackageItem;
   message?: string;
 };
@@ -95,10 +108,12 @@ const isPackageItem = (value: unknown): value is PackageItem => {
   return (
     typeof value.id === "number" &&
     typeof value.recipient_name === "string" &&
+    typeof value.recipient_email === "string" &&
     typeof value.apartment_number === "string" &&
     (typeof value.description === "string" || value.description === null) &&
     typeof value.sender === "string" &&
     (typeof value.delivery_date === "string" || value.delivery_date === null) &&
+    (typeof value.retrieval_code === "string" || value.retrieval_code === null) &&
     typeof value.created_at === "string" &&
     (typeof value.retrieved_at === "string" || value.retrieved_at === null) &&
     isPackageStatus(value.status)
@@ -243,6 +258,14 @@ const buildMutationResponse = (data: ApiResponseData | null) => {
   } satisfies PackageMutationResponse;
 };
 
+const buildVerificationResponse = (data: ApiResponseData | null) => {
+  // # La verificación retorna un único paquete, no una lista ni un id suelto.
+  return {
+    package: buildPackageFromUnknown(data?.package),
+    message: typeof data?.message === "string" ? data.message : undefined,
+  } satisfies PackageVerificationResponse;
+};
+
 export const fetchPackages = async (filters: PackageFilters = {}) => {
   const searchParams = new URLSearchParams();
 
@@ -284,6 +307,24 @@ export const createPackage = async (payload: CreatePackagePayload) => {
   );
 
   return buildMutationResponse(responseData).package;
+};
+
+export const verifyPackageQr = async (retrievalCode: string) => {
+  // # El scanner lee el texto embebido en el QR y lo enviamos al backend para confirmar el retiro.
+  // # La regla de validez vive en backend, porque ahí se invalida el QR al entregar.
+  const responseData = await request(
+    "/api/packages/verify-code",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ retrieval_code: retrievalCode }),
+    },
+    "No se pudo validar el QR de retiro."
+  );
+
+  return buildVerificationResponse(responseData);
 };
 
 export const updatePackage = async (
