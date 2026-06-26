@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 /**
  * Roles disponibles en el sistema
  */
-export type UserRole = "conserje" | "residente";
+export type UserRole = "conserje" | "residente" | "administrador";
 
 /**
  * Payload del JWT que se guardaré en el token
@@ -17,7 +17,7 @@ export interface TokenPayload {
   id: number;           // ID del usuario en la BD
   email: string;        // Email único del usuario
   name: string;         // Nombre completo
-  role: UserRole;       // Rol (conserje o residente)
+  role: UserRole;       // Rol (conserje, residente o administrador)
   username?: string;    // Nombre de usuario (opcional)
   iat?: number;         // Issued At (agregado automáticamente por JWT)
   exp?: number;         // Expiration (agregado automáticamente por JWT)

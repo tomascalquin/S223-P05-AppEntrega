@@ -2,7 +2,6 @@ import {
   useEffect,
   useEffectEvent,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -22,7 +21,6 @@ import { toastError, toastInfo, toastSuccess } from "../lib/toast";
 
 type AuthMode = "login" | "register";
 type AuthStep = "credentials" | "otp";
-type RoleTranslationKey = "resident" | "concierge" | "administrator";
 
 type AuthFormState = {
   role: Role;
@@ -66,20 +64,6 @@ const initialFieldErrors: AuthFieldErrors = {
   otpCode: "",
 };
 
-const normalizeRoleTranslationKey = (role: string): RoleTranslationKey => {
-  const roleAliases: Record<string, RoleTranslationKey> = {
-    resident: "resident",
-    residente: "resident",
-    concierge: "concierge",
-    conserje: "concierge",
-    administrador: "administrator",
-    admin: "administrator",
-    administrator: "administrator",
-  };
-
-  return roleAliases[role] ?? "resident";
-};
-
 const Login = () => {
   const navigate = useNavigate();
   const redirectTimeoutRef = useRef<number | null>(null);
@@ -106,31 +90,13 @@ const Login = () => {
     useState<PendingOtpChallenge | null>(null);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() ?? "";
 
-  // # Las tarjetas de rol se reconstruyen con `t(...)` para actualizarse al cambiar idioma sin duplicar JSX.
-  const roleOptions = useMemo(
-    () =>
-      (["residente", "conserje", "administrador"] as const).map((value) => {
-        const translationKey = normalizeRoleTranslationKey(value);
-
-        return {
-          value,
-          label: t(`common.roleLabel.${translationKey}`),
-          description: t(`auth.roleDescription.${translationKey}`),
-        };
-      }),
-    [t]
-  );
-
   const validateLoginForm = (values: AuthFormState) => {
     const nextErrors: AuthFieldErrors = { ...initialFieldErrors };
     const normalizedIdentifier = values.identifier.trim();
 
     if (!normalizedIdentifier) {
       nextErrors.identifier = t("auth.validation.identifier.required");
-    } else if (
-      normalizedIdentifier.includes("@") &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdentifier)
-    ) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdentifier)) {
       nextErrors.identifier = t("auth.validation.identifier.invalidEmail");
     }
 
@@ -206,6 +172,7 @@ const Login = () => {
   const handleSuccessfulAuth = (role: Role, message: string) => {
     toastSuccess(message);
     redirectTimeoutRef.current = window.setTimeout(() => {
+      // # La ruta se decide con el rol real entregado por el backend, no por una selección del frontend.
       navigate(getHomePathForRole(role), { replace: true });
     }, 800);
   };
@@ -214,10 +181,7 @@ const Login = () => {
     resetFeedback();
 
     try {
-      const authenticatedUser = await loginWithGoogle(
-        credential,
-        formData.role
-      );
+      const authenticatedUser = await loginWithGoogle(credential);
       handleSuccessfulAuth(
         authenticatedUser.role,
         t("auth.success.google", {
@@ -344,7 +308,7 @@ const Login = () => {
       const scriptNode = document.getElementById(scriptId);
       scriptNode?.removeEventListener("load", onScriptLoad);
     };
-  }, [authStep, googleClientId, mode, formData.role]);
+  }, [authStep, googleClientId, mode]);
 
   const handleModeChange = (nextMode: AuthMode) => {
     // # Al cambiar entre login y registro limpiamos errores previos para no mezclar mensajes de distintos flujos.
@@ -361,19 +325,6 @@ const Login = () => {
       role: nextMode === "register" ? "residente" : current.role,
       otpCode: "",
     }));
-    resetFeedback();
-  };
-
-  const handleRoleChange = (role: Role) => {
-    setFormData((current) => ({
-      ...current,
-      role,
-      otpCode: "",
-    }));
-
-    setAuthStep("credentials");
-    setPendingOtpChallenge(null);
-    setIsGoogleReady(false);
     resetFeedback();
   };
 
@@ -452,8 +403,7 @@ const Login = () => {
 
       if (mode === "login") {
         const loginResult = await login({
-          role: normalizedFormData.role,
-          identifier: normalizedFormData.identifier,
+          email: normalizedFormData.identifier,
           password: normalizedFormData.password,
         });
 
@@ -558,41 +508,6 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             {/* # El mismo formulario soporta login y registro; solo alternamos los campos que cambian entre ambos modos. */}
-            {/* # El selector de roles solo aplica al login: conserje y administrador son
-                # cuentas existentes que inician sesión, nunca roles auto-asignables al registrarse. */}
-            {authStep === "credentials" && mode === "login" && (
-              <div>
-                <p className="text-sm font-medium text-white/85">
-                  {t("auth.selectRole")}
-                </p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  {roleOptions.map((option) => {
-                    const isSelected = formData.role === option.value;
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => handleRoleChange(option.value)}
-                        disabled={isAuthenticating}
-                        className={`overflow-hidden rounded-2xl border px-4 py-4 text-left transition ${
-                          isSelected
-                            ? "border-emerald-400 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(52,211,153,0.2)]"
-                            : "border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/8"
-                        }`}
-                      >
-                        <p className="break-words text-sm font-semibold text-white">
-                          {option.label}
-                        </p>
-                        <p className="mt-1 break-words text-sm leading-5 text-white/65">
-                          {option.description}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* # El registro público siempre crea una cuenta "residente"; no se ofrece
                 # forma de elegir conserje/administrador desde este formulario. */}
@@ -707,7 +622,7 @@ const Login = () => {
                   value={formData.identifier}
                   onChange={handleChange}
                   disabled={isAuthenticating}
-                  placeholder={t(`auth.placeholder.identifier.${formData.role}`)}
+                  placeholder={t("auth.placeholder.identifier")}
                   aria-invalid={fieldErrors.identifier !== ""}
                   className={`mt-2 w-full rounded-2xl border bg-white/5 px-4 py-3.5 text-white outline-none transition placeholder:text-white/35 ${
                     fieldErrors.identifier
@@ -754,9 +669,6 @@ const Login = () => {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-sm text-white/70">
                   {t("auth.otpSummary", {
-                    role: t(
-                      `common.roleLabel.${normalizeRoleTranslationKey(formData.role)}`
-                    ),
                     identifier: formData.identifier,
                   })}
                 </p>
@@ -840,9 +752,11 @@ const Login = () => {
                 <LoadingSpinner size="sm" color="emerald" />
                 {authStep === "otp"
                   ? t("auth.loadingOtp")
-                  : t(`auth.loading${mode === "login" ? "Login" : "Register"}`, {
-                      role: t(`common.role.${formData.role}`),
-                    })}
+                  : mode === "login"
+                    ? t("auth.loadingLogin")
+                    : t("auth.loadingRegister", {
+                        role: t(`common.role.${formData.role}`),
+                      })}
               </div>
             )}
 
@@ -865,12 +779,11 @@ const Login = () => {
               ) : (
                 authStep === "otp"
                   ? t("auth.verifyOtpButton")
-                  : t(
-                      mode === "login" ? "auth.loginButton" : "auth.registerButton",
-                      {
+                  : mode === "login"
+                    ? t("auth.loginButton")
+                    : t("auth.registerButton", {
                         role: t(`common.role.${formData.role}`),
-                      }
-                )
+                      })
               )}
             </button>
 

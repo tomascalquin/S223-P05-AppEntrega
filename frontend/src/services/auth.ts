@@ -20,8 +20,7 @@ export type AuthSession = {
 };
 
 export type LoginCredentials = {
-  role: Role;
-  identifier: string;
+  email: string;
   password: string;
 };
 
@@ -53,6 +52,11 @@ type LoginApiResponse = {
   message?: string;
   token?: string;
   user?: Partial<AuthUser>;
+  data?: {
+    accessToken?: string;
+    token?: string;
+    user?: Partial<AuthUser>;
+  };
   requiresOtp?: boolean;
   otpSessionId?: string;
   otpExpiresAt?: string;
@@ -63,12 +67,22 @@ type RegisterApiResponse = {
   message?: string;
   token?: string;
   user?: Partial<AuthUser>;
+  data?: {
+    accessToken?: string;
+    token?: string;
+    user?: Partial<AuthUser>;
+  };
 };
 
 type VerifyOtpApiResponse = {
   message?: string;
   token?: string;
   user?: Partial<AuthUser>;
+  data?: {
+    accessToken?: string;
+    token?: string;
+    user?: Partial<AuthUser>;
+  };
 };
 
 type GoogleAuthApiResponse = {
@@ -76,6 +90,11 @@ type GoogleAuthApiResponse = {
   error?: string;
   token?: string;
   user?: Partial<AuthUser>;
+  data?: {
+    accessToken?: string;
+    token?: string;
+    user?: Partial<AuthUser>;
+  };
 };
 
 type ProfileApiResponse = {
@@ -132,16 +151,19 @@ const buildUserFromApi = (responseUser: Partial<AuthUser>): AuthUser => {
 };
 
 const buildSessionFromApi = (
-  response: Pick<LoginApiResponse, "token" | "user">
+  response: Pick<LoginApiResponse, "token" | "user" | "data">
 ): AuthSession => {
-  if (typeof response.token !== "string" || !response.token.trim()) {
+  const token = response.token ?? response.data?.token ?? response.data?.accessToken;
+  const user = response.user ?? response.data?.user;
+
+  if (typeof token !== "string" || !token.trim()) {
     throw new AuthError(
       "INVALID_RESPONSE",
       translateAuth("auth.errors.invalidResponse")
     );
   }
 
-  if (!response.user) {
+  if (!user) {
     throw new AuthError(
       "INVALID_RESPONSE",
       translateAuth("auth.errors.invalidResponse")
@@ -149,8 +171,8 @@ const buildSessionFromApi = (
   }
 
   return {
-    token: response.token,
-    user: buildUserFromApi(response.user),
+    token,
+    user: buildUserFromApi(user),
   };
 };
 
@@ -206,8 +228,7 @@ const authenticateWithApi = async (
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        role: credentials.role,
-        identifier: credentials.identifier.trim(),
+        email: credentials.email.trim(),
         password: credentials.password,
       }),
     });
@@ -333,8 +354,7 @@ const verifyOtpWithApi = async (
 };
 
 const authenticateWithGoogleApi = async (
-  googleCredential: string,
-  role: Role
+  googleCredential: string
 ): Promise<AuthSession> => {
   let response: Response;
 
@@ -346,7 +366,6 @@ const authenticateWithGoogleApi = async (
       },
       body: JSON.stringify({
         token: googleCredential,
-        role,
       }),
     });
   } catch {
@@ -438,10 +457,9 @@ export const registerUser = async (data: RegisterData): Promise<AuthSession> => 
 };
 
 export const authenticateWithGoogle = async (
-  googleCredential: string,
-  role: Role
+  googleCredential: string
 ): Promise<AuthSession> => {
-  return authenticateWithGoogleApi(googleCredential, role);
+  return authenticateWithGoogleApi(googleCredential);
 };
 
 export const validateStoredSession = async (token: string): Promise<AuthUser> => {

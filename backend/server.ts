@@ -299,13 +299,13 @@ const buildOtpChallengeResponse = (otpSessionId: string, otpExpiresAt: Date, otp
   };
 };
 
-const getUserByIdentifier = async (identifier: string, role: UserRole) => {
-  const normalizedIdentifier = normalizeIdentifier(identifier);
+const getUserByEmail = async (email: string) => {
+  const normalizedEmail = normalizeEmail(email);
   const [rows] = await db.query<UserRow[]>(
     `SELECT * FROM users
-     WHERE role = ? AND (LOWER(email) = ? OR LOWER(username) = ?)
+     WHERE LOWER(email) = ?
      LIMIT 1`,
-    [role, normalizedIdentifier, normalizedIdentifier]
+    [normalizedEmail]
   );
 
   return rows[0] ?? null;
@@ -2159,23 +2159,29 @@ Bun.serve({
     if (method === "POST" && url.pathname === "/api/auth/login") {
       try {
         const body = (await request.json()) as Record<string, unknown>;
-        const role = body.role;
-        const identifier = getRequiredString(body.identifier);
+        const email = getRequiredString(body.email);
         const password = getRequiredString(body.password);
 
-        if (!isUserRole(role) || !identifier || !password) {
+        if (!email || !isEmail(email) || !password) {
           return jsonResponse(
-            { error: "role, identifier y password son requeridos" },
+            { error: "Correo electrónico y contraseña son requeridos" },
             { status: 400 }
           );
         }
 
-        const user = await getUserByIdentifier(identifier, role);
+        const user = await getUserByEmail(email);
 
         if (!user) {
           return jsonResponse(
             { error: "Credenciales invalidas" },
             { status: 401 }
+          );
+        }
+
+        if (!isUserRole(user.role)) {
+          return jsonResponse(
+            { error: "El usuario no tiene un rol asignado" },
+            { status: 403 }
           );
         }
 
@@ -2203,15 +2209,16 @@ Bun.serve({
           );
         }
 
+        // # El rol real sale del usuario registrado; el frontend no puede elegirlo ni enviarlo.
         // Si existe al menos una entrada en la whitelist para este rol, el email debe estar incluido.
         const [whitelistCount] = await db.query<RowDataPacket[]>(
           "SELECT COUNT(*) as total FROM authorized_emails WHERE role = ?",
-          [role]
+          [user.role]
         );
         if (Number(whitelistCount[0]?.total ?? 0) > 0) {
           const [whitelistMatch] = await db.query<RowDataPacket[]>(
             "SELECT id FROM authorized_emails WHERE LOWER(email) = ? AND role = ?",
-            [normalizeIdentifier(user.email), role]
+            [normalizeIdentifier(user.email), user.role]
           );
           if (whitelistMatch.length === 0) {
             return jsonResponse(
@@ -2372,7 +2379,6 @@ Bun.serve({
 
         const body = (await request.json()) as Record<string, unknown>;
         const token = getRequiredString(body.token);
-        const requestedRole = isUserRole(body.role) ? body.role : "residente";
 
         if (!token || !googleClient) {
           return jsonResponse(
@@ -2439,7 +2445,7 @@ Bun.serve({
               payload.name || "Usuario Google",
               normalizeIdentifier(payload.email),
               googleUsername,
-              requestedRole,
+              "residente",
               "GOOGLE_LOGIN",
             ]
           );
@@ -2449,7 +2455,8 @@ Bun.serve({
             name: payload.name || "Usuario Google",
             email: normalizeIdentifier(payload.email),
             username: googleUsername,
-            role: requestedRole,
+            // # Las altas automáticas por Google siempre parten como residente; roles internos se asignan desde administración.
+            role: "residente",
           };
         }
 

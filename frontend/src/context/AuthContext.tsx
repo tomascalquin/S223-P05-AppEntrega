@@ -24,7 +24,7 @@ interface AuthContextType {
   isAuthenticating: boolean;
   isCheckingSession: boolean;
   login: (credentials: LoginCredentials) => Promise<LoginResult>;
-  loginWithGoogle: (googleCredential: string, role: Role) => Promise<AuthUser>;
+  loginWithGoogle: (googleCredential: string) => Promise<AuthUser>;
   verifyOtp: (
     challenge: PendingOtpChallenge,
     otpCode: string
@@ -111,15 +111,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const loginWithGoogle = async (googleCredential: string, role: Role) => {
+  const loginWithGoogle = async (googleCredential: string) => {
     setIsAuthenticating(true);
     setAuthError("");
 
     try {
-      const authenticatedSession = await authenticateWithGoogle(
-        googleCredential,
-        role
-      );
+      const authenticatedSession = await authenticateWithGoogle(googleCredential);
       saveStoredSession(authenticatedSession);
       setUser(authenticatedSession.user);
       return authenticatedSession.user;
