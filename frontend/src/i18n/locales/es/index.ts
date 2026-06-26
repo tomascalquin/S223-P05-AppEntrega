@@ -54,17 +54,16 @@ const es = {
       otp: 'Verificar código OTP',
     },
     description: {
-      login: 'Ingresa con tu email o usuario y tu contraseña.',
+      login: 'Ingresa con tu correo y contraseña.',
       register: 'Completa tus datos para registrarte y entrar de inmediato.',
       otp: 'Ingresa el código temporal enviado para completar el acceso de {identifier}.',
     },
-    selectRole: 'Entrar como',
-    loginButton: 'Entrar como {role}',
+    loginButton: 'Iniciar sesión',
     registerButton: 'Registrarme como {role}',
     verifyOtpButton: 'Validar código OTP',
     googleDivider: 'o continúa con',
     googleLoading: 'Cargando acceso con Google...',
-    loadingLogin: 'Validando acceso de {role} y preparando tu dashboard...',
+    loadingLogin: 'Validando acceso y preparando tu dashboard...',
     loadingRegister: 'Creando cuenta de {role} y preparando tu dashboard...',
     loadingOtp: 'Validando el segundo factor de autenticación...',
     success: {
@@ -86,7 +85,7 @@ const es = {
       name: 'Nombre completo',
       email: 'Email',
       username: 'Nombre de usuario',
-      identifier: 'Email o usuario',
+      identifier: 'Correo electrónico',
       password: 'Contraseña',
       confirmPassword: 'Confirmar contraseña',
       otpCode: 'Código OTP',
@@ -95,11 +94,7 @@ const es = {
       name: 'Ej: Martina Soto',
       email: 'Ej: usuario@encombox.cl',
       username: 'Crea tu usuario',
-      identifier: {
-        residente: 'Ej: residente o residente@encombox.cl',
-        conserje: 'Ej: conserje o conserje@encombox.cl',
-        administrador: 'Ej: admin o admin@encombox.cl',
-      },
+      identifier: 'Ej: usuario@encombox.cl',
       password: {
         login: 'Ingresa tu contraseña',
         register: 'Crea una contraseña segura',
@@ -109,7 +104,7 @@ const es = {
     },
     validation: {
       identifier: {
-        required: 'Ingresa tu email institucional o tu usuario.',
+        required: 'Ingresa tu correo electrónico.',
         invalidEmail: 'El formato del email no es válido.',
       },
       password: {
@@ -147,7 +142,7 @@ const es = {
       conserje: 'panel de conserjería',
       administrador: 'panel de administración',
     },
-    otpSummary: 'Segundo factor para {role} con identificador {identifier}.',
+    otpSummary: 'Segundo factor para {identifier}.',
     otpExpiresAt: 'El código expira a las {expiresAt}.',
     errors: {
       networkLogin: 'No pudimos conectar con el servicio de autenticación. Revisa tu red e intenta otra vez.',

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import bcryptjs from "bcryptjs";
-import { generateToken, generateRefreshToken, verifyRefreshToken, type TokenPayload } from "../utils/jwt";
+import { generateToken, generateRefreshToken, verifyRefreshToken, type UserRole } from "../utils/jwt";
 import { googleClient } from "../config/oauth";
 import db from "../db";
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
@@ -15,10 +15,12 @@ interface AppUser extends RowDataPacket {
   name: string;
   username?: string;
   picture?: string | null;
-  role: "conserje" | "residente";
+  role: "conserje" | "residente" | "administrador" | null;
   password_hash?: string;
   is_active: boolean;
 }
+
+type AppUserWithRole = AppUser & { role: UserRole };
 
 // ========================================
 // FUNCIONES AUXILIARES
@@ -32,6 +34,14 @@ interface AppUser extends RowDataPacket {
 const PRIVILEGED_ROLES = new Set(["conserje", "administrador", "admin"]);
 
 const FORBIDDEN_ROLE_MESSAGE = "No está permitido registrarse directamente con este rol";
+
+function hasAssignedRole(user: AppUser): user is AppUserWithRole {
+  return (
+    user.role === "conserje" ||
+    user.role === "residente" ||
+    user.role === "administrador"
+  );
+}
 
 /**
  * FUNCIÓN: Rechazar intentos de auto-asignación de roles privilegiados
@@ -56,7 +66,7 @@ function rejectPrivilegedSelfRegistration(
  */
 function sendLoginSuccess(
   res: Response,
-  user: AppUser,
+  user: AppUserWithRole,
   accessToken: string,
   refreshToken?: string
 ) {
@@ -166,6 +176,12 @@ export async function register(req: Request, res: Response) {
 
     const newUser = newUsers[0];
 
+    if (!hasAssignedRole(newUser)) {
+      return res.status(403).json({
+        error: "El usuario no tiene un rol asignado",
+      });
+    }
+
     // Generar tokens
     const accessToken = generateToken({
       id: newUser.id,
@@ -272,6 +288,12 @@ export async function login(req: Request, res: Response) {
       });
     }
 
+    if (!hasAssignedRole(user)) {
+      return res.status(403).json({
+        error: "El usuario no tiene un rol asignado",
+      });
+    }
+
     // Validar contraseña
     const isPasswordValid = await bcryptjs.compare(password, user.password_hash || "");
 
@@ -368,6 +390,12 @@ export async function refreshAccessToken(req: Request, res: Response) {
 
     const user = users[0];
 
+    if (!hasAssignedRole(user)) {
+      return res.status(403).json({
+        error: "El usuario no tiene un rol asignado",
+      });
+    }
+
     // Generar nuevo access token
     const newAccessToken = generateToken({
       id: user.id,
@@ -459,6 +487,12 @@ export async function googleLogin(req: Request, res: Response) {
       );
 
       user = newUsers[0];
+    }
+
+    if (!hasAssignedRole(user)) {
+      return res.status(403).json({
+        error: "El usuario no tiene un rol asignado",
+      });
     }
 
     // Generar tokens

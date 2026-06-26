@@ -41,8 +41,7 @@ describe("auth service", () => {
       .mockResolvedValue(jsonResponse({ token: "jwt-token", user: validUser }));
 
     const result = await authenticateUser({
-      role: "residente",
-      identifier: "  patricia@example.com  ",
+      email: "  patricia@example.com  ",
       password: "password123",
     });
 
@@ -56,8 +55,7 @@ describe("auth service", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          role: "residente",
-          identifier: "patricia@example.com",
+          email: "patricia@example.com",
           password: "password123",
         }),
       })
@@ -74,8 +72,7 @@ describe("auth service", () => {
 
     await expect(
       authenticateUser({
-        role: "conserje",
-        identifier: "wrong",
+        email: "wrong@example.com",
         password: "password123",
       })
     ).rejects.toMatchObject({ code, message: "Credenciales invalidas" });
@@ -88,8 +85,7 @@ describe("auth service", () => {
 
     await expect(
       authenticateUser({
-        role: "residente",
-        identifier: "patricia",
+        email: "patricia@example.com",
         password: "password123",
       })
     ).rejects.toMatchObject({ code: "NETWORK_ERROR", message: "Servidor caido" });
@@ -102,8 +98,7 @@ describe("auth service", () => {
 
     await expect(
       authenticateUser({
-        role: "residente",
-        identifier: "patricia",
+        email: "patricia@example.com",
         password: "password123",
       })
     ).rejects.toBeInstanceOf(AuthError);

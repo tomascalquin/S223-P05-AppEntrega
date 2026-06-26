@@ -54,17 +54,16 @@ const en = {
       otp: 'Verify OTP code',
     },
     description: {
-      login: 'Sign in with your email or username and password.',
+      login: 'Sign in with your email and password.',
       register: 'Fill in your details to create an account and enter right away.',
       otp: 'Enter the temporary code sent to complete access for {identifier}.',
     },
-    selectRole: 'Continue as',
-    loginButton: 'Sign in as {role}',
+    loginButton: 'Sign in',
     registerButton: 'Sign up as {role}',
     verifyOtpButton: 'Verify OTP code',
     googleDivider: 'or continue with',
     googleLoading: 'Loading Google sign in...',
-    loadingLogin: 'Validating {role} access and preparing your dashboard...',
+    loadingLogin: 'Validating access and preparing your dashboard...',
     loadingRegister: 'Creating your {role} account and preparing your dashboard...',
     loadingOtp: 'Validating the second authentication factor...',
     success: {
@@ -86,7 +85,7 @@ const en = {
       name: 'Full name',
       email: 'Email',
       username: 'Username',
-      identifier: 'Email or username',
+      identifier: 'Email',
       password: 'Password',
       confirmPassword: 'Confirm password',
       otpCode: 'OTP code',
@@ -95,11 +94,7 @@ const en = {
       name: 'Example: Martina Soto',
       email: 'Example: user@encombox.cl',
       username: 'Create your username',
-      identifier: {
-        residente: 'Example: residente or residente@encombox.cl',
-        conserje: 'Example: conserje or conserje@encombox.cl',
-        administrador: 'Example: admin or admin@encombox.cl',
-      },
+      identifier: 'Example: user@encombox.cl',
       password: {
         login: 'Enter your password',
         register: 'Create a secure password',
@@ -109,7 +104,7 @@ const en = {
     },
     validation: {
       identifier: {
-        required: 'Enter your institutional email or username.',
+        required: 'Enter your email address.',
         invalidEmail: 'The email format is invalid.',
       },
       password: {
@@ -147,7 +142,7 @@ const en = {
       conserje: 'concierge dashboard',
       administrador: 'admin dashboard',
     },
-    otpSummary: 'Second factor for {role} using identifier {identifier}.',
+    otpSummary: 'Second factor for {identifier}.',
     otpExpiresAt: 'The code expires at {expiresAt}.',
     errors: {
       networkLogin: 'We could not connect to the authentication service. Check your network and try again.',

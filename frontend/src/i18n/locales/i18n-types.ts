@@ -175,7 +175,7 @@ type RootTranslation = {
 		}
 		description: {
 			/**
-			 * I​n​g​r​e​s​a​ ​c​o​n​ ​t​u​ ​e​m​a​i​l​ ​o​ ​u​s​u​a​r​i​o​ ​y​ ​t​u​ ​c​o​n​t​r​a​s​e​ñ​a​.
+			 * I​n​g​r​e​s​a​ ​c​o​n​ ​t​u​ ​c​o​r​r​e​o​ ​y​ ​c​o​n​t​r​a​s​e​ñ​a​.
 			 */
 			login: string
 			/**
@@ -189,14 +189,9 @@ type RootTranslation = {
 			otp: RequiredParams<'identifier'>
 		}
 		/**
-		 * E​n​t​r​a​r​ ​c​o​m​o
+		 * I​n​i​c​i​a​r​ ​s​e​s​i​ó​n
 		 */
-		selectRole: string
-		/**
-		 * E​n​t​r​a​r​ ​c​o​m​o​ ​{​r​o​l​e​}
-		 * @param {unknown} role
-		 */
-		loginButton: RequiredParams<'role'>
+		loginButton: string
 		/**
 		 * R​e​g​i​s​t​r​a​r​m​e​ ​c​o​m​o​ ​{​r​o​l​e​}
 		 * @param {unknown} role
@@ -215,10 +210,9 @@ type RootTranslation = {
 		 */
 		googleLoading: string
 		/**
-		 * V​a​l​i​d​a​n​d​o​ ​a​c​c​e​s​o​ ​d​e​ ​{​r​o​l​e​}​ ​y​ ​p​r​e​p​a​r​a​n​d​o​ ​t​u​ ​d​a​s​h​b​o​a​r​d​.​.​.
-		 * @param {unknown} role
+		 * V​a​l​i​d​a​n​d​o​ ​a​c​c​e​s​o​ ​y​ ​p​r​e​p​a​r​a​n​d​o​ ​t​u​ ​d​a​s​h​b​o​a​r​d​.​.​.
 		 */
-		loadingLogin: RequiredParams<'role'>
+		loadingLogin: string
 		/**
 		 * C​r​e​a​n​d​o​ ​c​u​e​n​t​a​ ​d​e​ ​{​r​o​l​e​}​ ​y​ ​p​r​e​p​a​r​a​n​d​o​ ​t​u​ ​d​a​s​h​b​o​a​r​d​.​.​.
 		 * @param {unknown} role
@@ -295,7 +289,7 @@ type RootTranslation = {
 			 */
 			username: string
 			/**
-			 * E​m​a​i​l​ ​o​ ​u​s​u​a​r​i​o
+			 * C​o​r​r​e​o​ ​e​l​e​c​t​r​ó​n​i​c​o
 			 */
 			identifier: string
 			/**
@@ -324,20 +318,10 @@ type RootTranslation = {
 			 * C​r​e​a​ ​t​u​ ​u​s​u​a​r​i​o
 			 */
 			username: string
-			identifier: {
-				/**
-				 * E​j​:​ ​r​e​s​i​d​e​n​t​e​ ​o​ ​r​e​s​i​d​e​n​t​e​@​e​n​c​o​m​b​o​x​.​c​l
-				 */
-				residente: string
-				/**
-				 * E​j​:​ ​c​o​n​s​e​r​j​e​ ​o​ ​c​o​n​s​e​r​j​e​@​e​n​c​o​m​b​o​x​.​c​l
-				 */
-				conserje: string
-				/**
-				 * E​j​:​ ​a​d​m​i​n​ ​o​ ​a​d​m​i​n​@​e​n​c​o​m​b​o​x​.​c​l
-				 */
-				administrador: string
-			}
+			/**
+			 * E​j​:​ ​u​s​u​a​r​i​o​@​e​n​c​o​m​b​o​x​.​c​l
+			 */
+			identifier: string
 			password: {
 				/**
 				 * I​n​g​r​e​s​a​ ​t​u​ ​c​o​n​t​r​a​s​e​ñ​a
@@ -360,7 +344,7 @@ type RootTranslation = {
 		validation: {
 			identifier: {
 				/**
-				 * I​n​g​r​e​s​a​ ​t​u​ ​e​m​a​i​l​ ​i​n​s​t​i​t​u​c​i​o​n​a​l​ ​o​ ​t​u​ ​u​s​u​a​r​i​o​.
+				 * I​n​g​r​e​s​a​ ​t​u​ ​c​o​r​r​e​o​ ​e​l​e​c​t​r​ó​n​i​c​o​.
 				 */
 				required: string
 				/**
@@ -458,11 +442,10 @@ type RootTranslation = {
 			administrador: string
 		}
 		/**
-		 * S​e​g​u​n​d​o​ ​f​a​c​t​o​r​ ​p​a​r​a​ ​{​r​o​l​e​}​ ​c​o​n​ ​i​d​e​n​t​i​f​i​c​a​d​o​r​ ​{​i​d​e​n​t​i​f​i​e​r​}​.
+		 * S​e​g​u​n​d​o​ ​f​a​c​t​o​r​ ​p​a​r​a​ ​{​i​d​e​n​t​i​f​i​e​r​}​.
 		 * @param {unknown} identifier
-		 * @param {unknown} role
 		 */
-		otpSummary: RequiredParams<'identifier' | 'role'>
+		otpSummary: RequiredParams<'identifier'>
 		/**
 		 * E​l​ ​c​ó​d​i​g​o​ ​e​x​p​i​r​a​ ​a​ ​l​a​s​ ​{​e​x​p​i​r​e​s​A​t​}​.
 		 * @param {unknown} expiresAt
@@ -1642,7 +1625,7 @@ export type TranslationFunctions = {
 		}
 		description: {
 			/**
-			 * Ingresa con tu email o usuario y tu contraseña.
+			 * Ingresa con tu correo y contraseña.
 			 */
 			login: () => LocalizedString
 			/**
@@ -1655,13 +1638,9 @@ export type TranslationFunctions = {
 			otp: (arg: { identifier: unknown }) => LocalizedString
 		}
 		/**
-		 * Entrar como
+		 * Iniciar sesión
 		 */
-		selectRole: () => LocalizedString
-		/**
-		 * Entrar como {role}
-		 */
-		loginButton: (arg: { role: unknown }) => LocalizedString
+		loginButton: () => LocalizedString
 		/**
 		 * Registrarme como {role}
 		 */
@@ -1679,9 +1658,9 @@ export type TranslationFunctions = {
 		 */
 		googleLoading: () => LocalizedString
 		/**
-		 * Validando acceso de {role} y preparando tu dashboard...
+		 * Validando acceso y preparando tu dashboard...
 		 */
-		loadingLogin: (arg: { role: unknown }) => LocalizedString
+		loadingLogin: () => LocalizedString
 		/**
 		 * Creando cuenta de {role} y preparando tu dashboard...
 		 */
@@ -1752,7 +1731,7 @@ export type TranslationFunctions = {
 			 */
 			username: () => LocalizedString
 			/**
-			 * Email o usuario
+			 * Correo electrónico
 			 */
 			identifier: () => LocalizedString
 			/**
@@ -1781,20 +1760,10 @@ export type TranslationFunctions = {
 			 * Crea tu usuario
 			 */
 			username: () => LocalizedString
-			identifier: {
-				/**
-				 * Ej: residente o residente@encombox.cl
-				 */
-				residente: () => LocalizedString
-				/**
-				 * Ej: conserje o conserje@encombox.cl
-				 */
-				conserje: () => LocalizedString
-				/**
-				 * Ej: admin o admin@encombox.cl
-				 */
-				administrador: () => LocalizedString
-			}
+			/**
+			 * Ej: usuario@encombox.cl
+			 */
+			identifier: () => LocalizedString
 			password: {
 				/**
 				 * Ingresa tu contraseña
@@ -1817,7 +1786,7 @@ export type TranslationFunctions = {
 		validation: {
 			identifier: {
 				/**
-				 * Ingresa tu email institucional o tu usuario.
+				 * Ingresa tu correo electrónico.
 				 */
 				required: () => LocalizedString
 				/**
@@ -1915,9 +1884,9 @@ export type TranslationFunctions = {
 			administrador: () => LocalizedString
 		}
 		/**
-		 * Segundo factor para {role} con identificador {identifier}.
+		 * Segundo factor para {identifier}.
 		 */
-		otpSummary: (arg: { identifier: unknown, role: unknown }) => LocalizedString
+		otpSummary: (arg: { identifier: unknown }) => LocalizedString
 		/**
 		 * El código expira a las {expiresAt}.
 		 */
