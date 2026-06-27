@@ -29,6 +29,7 @@ const packageItem: PackageItem = {
   sender: "Tienda",
   delivery_date: "2026-06-23",
   status: "pending",
+  is_urgent: false,
   retrieval_code: "QR-1",
   created_at: "2026-06-23T10:00:00.000Z",
   retrieved_at: null,

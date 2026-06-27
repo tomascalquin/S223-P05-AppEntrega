@@ -127,6 +127,7 @@ const Residente = () => {
         dateLabel={t("historial.table.deliveryDate")}
         statusLabel={t("historial.table.status")}
         statusLabels={statusLabels}
+        urgentLabel={t("conserje.urgency.urgent")}
       />
     </section>
   );
