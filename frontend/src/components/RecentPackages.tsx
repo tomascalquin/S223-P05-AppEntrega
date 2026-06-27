@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { PackageItem, PackageStatus } from "../services/packages";
 
 type RecentPackagesProps = {
@@ -14,6 +15,9 @@ type RecentPackagesProps = {
   dateLabel: string;
   statusLabel: string;
   statusLabels: Record<PackageStatus, string>;
+  isConserje?: boolean;
+  onStatusChange?: (packageId: number, newStatus: PackageStatus) => Promise<void>;
+  changeStatusLabel?: string;
 };
 
 const statusClasses: Record<PackageStatus, string> = {
@@ -59,7 +63,27 @@ const RecentPackages = ({
   dateLabel,
   statusLabel,
   statusLabels,
+  isConserje = false,
+  onStatusChange,
+  changeStatusLabel = "Cambiar estado",
 }: RecentPackagesProps) => {
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
+  const handleStatusChange = async (
+    packageId: number,
+    newStatus: PackageStatus
+  ) => {
+    if (!onStatusChange) return;
+
+    setUpdatingId(packageId);
+    try {
+      await onStatusChange(packageId, newStatus);
+      setOpenMenuId(null);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
   return (
     <section className="rounded-xl border border-white/10 bg-[#2a2a2a] p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -102,11 +126,75 @@ const RecentPackages = ({
                     )}
                   </td>
                   <td className="py-3 whitespace-nowrap">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[item.status]}`}
-                    >
-                      {statusLabels[item.status]}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[item.status]}`}
+                      >
+                        {statusLabels[item.status]}
+                      </span>
+
+                      {/* Botón de cambio de estado solo para conserjes */}
+                      {isConserje && onStatusChange && (
+                        <div className="relative">
+                          <button
+                            onClick={() =>
+                              setOpenMenuId(
+                                openMenuId === item.id ? null : item.id
+                              )
+                            }
+                            disabled={updatingId === item.id}
+                            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-300 hover:bg-white/10 disabled:opacity-50"
+                            title={changeStatusLabel}
+                          >
+                            {updatingId === item.id ? (
+                              <>
+                                <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500 border-t-gray-300" />
+                              </>
+                            ) : (
+                              <>
+                                <svg
+                                  className="h-3 w-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                  />
+                                </svg>
+                              </>
+                            )}
+                          </button>
+
+                          {/* Menú desplegable de estados */}
+                          {openMenuId === item.id && updatingId !== item.id && (
+                            <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-md border border-white/10 bg-[#1a1a1a] shadow-lg">
+                              {(
+                                [
+                                  "received",
+                                  "pending",
+                                  "delivered",
+                                  "atraso",
+                                ] as const
+                              ).map((status) => (
+                                <button
+                                  key={status}
+                                  onClick={() =>
+                                    handleStatusChange(item.id, status)
+                                  }
+                                  className="block w-full px-3 py-2 text-left text-xs text-gray-300 hover:bg-white/5"
+                                >
+                                  {statusLabels[status]}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

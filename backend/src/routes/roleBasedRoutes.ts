@@ -1,5 +1,11 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest, requireRole } from "../middleware/authMiddleware";
+import {
+  getAllPackages,
+  getResidentPackages,
+  updatePackageStatus,
+  getPackageStats,
+} from "../controllers/packageController";
 
 const router = Router();
 
@@ -25,34 +31,7 @@ router.get(
   "/admin/packages",
   authMiddleware,
   requireRole("conserje"),
-  (req: AuthRequest, res) => {
-    try {
-      const user = req.user;
-
-      return res.status(200).json({
-        message: "Panel de administración de paquetes (Solo conserje)",
-        user: {
-          id: user.id,
-          role: user.role,
-          name: user.name,
-        },
-        data: {
-          totalPackages: 42,
-          pendingDelivery: 5,
-          delivered: 37,
-          packages: [
-            { id: 1, recipient: "Juan Pérez", status: "pending", date: "2024-01-15" },
-            { id: 2, recipient: "María García", status: "delivered", date: "2024-01-14" },
-          ],
-        },
-      });
-    } catch (error) {
-      return res.status(500).json({
-        error: "Error obteniendo paquetes",
-        message: error instanceof Error ? error.message : "Error desconocido",
-      });
-    }
-  }
+  getAllPackages
 );
 
 /**
@@ -83,69 +62,28 @@ router.post(
         conserjeRole: user.role,
         packageId: packageId,
         timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      return res.status(500).json({
-        error: "Error marcando paquete como entregado",
-        message: error instanceof Error ? error.message : "Error desconocido",
-      });
-    }
-  }
-);
-
-/**
- * ENDPOINT: GET /api/role-based/admin/reports
+      });UT /api/role-based/admin/packages/:packageId
  * Acceso: Solo CONSERJE
  * 
- * Obtiene reportes de gestión de encomiendas.
+ * Actualiza el estado de un paquete.
+ * Estados válidos: received, pending, delivered, atraso
+ * Solo los conserjes pueden cambiar el estado de los paquetes.
+ * 
+ * Cuerpo de la solicitud:
+ * {
+ *   "status": "delivered" | "pending" | "atraso" | "received"
+ * }
+ */
+router.put(
+  "/admin/packages/:packageId",
+  authMiddleware,y estadísticas de gestión de encomiendas.
  * Información estadística solo disponible para conserjes.
  */
 router.get(
   "/admin/reports",
   authMiddleware,
   requireRole("conserje"),
-  (req: AuthRequest, res) => {
-    try {
-      const user = req.user;
-
-      return res.status(200).json({
-        message: "Reportes de gestión (Solo conserje)",
-        generatedBy: user.name,
-        reports: {
-          totalPackagesThisMonth: 156,
-          deliveryRate: "98.7%",
-          averageDeliveryTime: "2.3 días",
-          topRecipients: [
-            { name: "Apto 101", count: 12 },
-            { name: "Apto 205", count: 9 },
-          ],
-        },
-      });
-    } catch (error) {
-      return res.status(500).json({
-        error: "Error obteniendo reportes",
-        message: error instanceof Error ? error.message : "Error desconocido",
-      });
-    }
-  }
-);
-
-// ============================================================
-// RUTAS SOLO PARA RESIDENTES
-// ============================================================
-
-/**
- * ENDPOINT: GET /api/role-based/my-packages
- * Acceso: Solo RESIDENTE
- * 
- * Lista los paquetes del residente actual.
- * Cada residente solo puede ver sus propios paquetes.
- */
-router.get(
-  "/my-packages",
-  authMiddleware,
-  requireRole("residente"),
-  (req: AuthRequest, res) => {
+  getPackageStatsreq: AuthRequest, res) => {
     try {
       const user = req.user;
 

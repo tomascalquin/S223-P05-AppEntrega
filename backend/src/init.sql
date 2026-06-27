@@ -42,6 +42,6 @@ CREATE TABLE IF NOT EXISTS packages (
   description TEXT,
   sender VARCHAR(255) NOT NULL,
   delivery_date TIMESTAMP NULL,
-  status ENUM('received', 'delivered', 'pending') DEFAULT 'received',
+  status ENUM('received', 'delivered', 'pending', 'atraso') DEFAULT 'received',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
