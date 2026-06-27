@@ -144,9 +144,16 @@ const DashboardConserje = () => {
             </p>
           </div>
           {oldestPackage && (
-            <span className="w-fit rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-200">
-              {t("historial.status.pending")}
-            </span>
+            <div className="flex w-fit items-center gap-2">
+              <span className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-200">
+                {t("historial.status.pending")}
+              </span>
+              {oldestPackage.is_urgent && (
+                <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
+                  {t("conserje.urgency.urgent")}
+                </span>
+              )}
+            </div>
           )}
         </div>
 

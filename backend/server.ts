@@ -22,6 +22,7 @@ type PackageRow = RowDataPacket & {
   sender: string;
   delivery_date: string | null;
   status: PackageStatus;
+  is_urgent: number;
   retrieval_code: string | null;
   created_at: string;
   retrieved_at: string | null;
@@ -469,13 +470,20 @@ const parseUserIdFromSegment = (pathname: string, segmentIndex: number) => {
   return Number.isInteger(id) && id > 0 ? id : null;
 };
 
+// # mysql2 devuelve TINYINT como number; normalizamos aquí para que el frontend
+// # siempre reciba un boolean real en is_urgent.
+const toPackageResponse = (row: PackageRow) => ({
+  ...row,
+  is_urgent: Boolean(row.is_urgent),
+});
+
 const getPackageById = async (id: number) => {
   const [rows] = await db.query<PackageRow[]>(
     "SELECT * FROM packages WHERE id = ?",
     [id]
   );
 
-  return rows[0] ?? null;
+  return rows[0] ? toPackageResponse(rows[0]) : null;
 };
 
 const getClaimById = async (id: number) => {
@@ -761,6 +769,7 @@ async function createTables() {
         sender VARCHAR(255) NOT NULL,
         delivery_date TIMESTAMP NULL,
         status ENUM('received', 'delivered', 'pending') DEFAULT 'received',
+        is_urgent TINYINT(1) NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         retrieved_at TIMESTAMP NULL,
         -- # Payload interno del QR. NULL significa que el QR ya no sirve para retirar.
@@ -800,6 +809,10 @@ async function createTables() {
       "status ENUM('received', 'delivered', 'pending') DEFAULT 'received'"
     );
     await ensureColumn("retrieval_code", "retrieval_code VARCHAR(32) NULL");
+    await ensureColumn(
+      "is_urgent",
+      "is_urgent TINYINT(1) NOT NULL DEFAULT 0"
+    );
     await ensureColumn(
       "created_at",
       "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
@@ -1090,7 +1103,7 @@ Bun.serve({
         );
 
         return jsonResponse({
-          packages: rows,
+          packages: rows.map(toPackageResponse),
         });
       } catch (error) {
         return jsonResponse(
@@ -1126,6 +1139,7 @@ Bun.serve({
         const description = getOptionalString(body.description);
         const deliveryDate = getOptionalString(body.delivery_date);
         const status = body.status === undefined ? "received" : body.status;
+        const isUrgent = body.is_urgent === undefined ? false : body.is_urgent;
 
         if (!recipientName) {
           return jsonResponse(
@@ -1168,13 +1182,20 @@ Bun.serve({
           );
         }
 
+        if (typeof isUrgent !== "boolean") {
+          return jsonResponse(
+            { error: "is_urgent debe ser booleano" },
+            { status: 400 }
+          );
+        }
+
         const retrievalCode =
           status === "delivered" ? null : await generateUniqueRetrievalCode();
 
         // # Guardamos el identificador junto al paquete antes de enviar el correo.
         // # Así el QR enviado por email apunta a un registro ya existente y verificable.
         const [result] = await db.query<ResultSetHeader>(
-          "INSERT INTO packages (recipient_name, recipient_email, apartment_number, description, sender, delivery_date, status, retrieval_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO packages (recipient_name, recipient_email, apartment_number, description, sender, delivery_date, status, retrieval_code, is_urgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
           [
             recipientName,
             normalizedRecipientEmail,
@@ -1184,6 +1205,7 @@ Bun.serve({
             deliveryDate,
             status,
             retrievalCode,
+            isUrgent,
           ]
         );
 
@@ -1388,7 +1410,9 @@ Bun.serve({
           stats: {
             pending_total: Number(statsRows[0]?.pending_total ?? 0),
             delivered_today: Number(statsRows[0]?.delivered_today ?? 0),
-            oldest_pending_package: oldestPendingRows[0] ?? null,
+            oldest_pending_package: oldestPendingRows[0]
+              ? toPackageResponse(oldestPendingRows[0])
+              : null,
           },
         });
       } catch (error) {

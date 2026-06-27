@@ -194,7 +194,6 @@ const Conserje = () => {
 
     try {
       // # Este payload usa exactamente los nombres que espera el backend.
-      // # La urgencia sigue siendo visual en frontend porque la tabla actual no guarda ese dato.
       const payload = {
         recipient_name: normalizedData.recipient_name,
         // # Este email es imprescindible porque el backend enviará ahí el QR de retiro.
@@ -202,6 +201,7 @@ const Conserje = () => {
         apartment_number: normalizedData.apartment_number,
         sender: normalizedData.sender,
         delivery_date: normalizedData.delivery_date,
+        is_urgent: normalizedData.urgency === "urgent",
       };
 
       // # `createPackage` ya se encarga de:
@@ -210,8 +210,6 @@ const Conserje = () => {
       // # 3. Lanzar errores claros si algo falla
       const createdPackage = await createPackage(payload);
 
-      // # Incluimos la urgencia en el mensaje visual para que el usuario vea qué eligió,
-      // # aunque por ahora esa información no viaje al backend.
       toastSuccess(
         t("conserje.success", {
           urgency: t(
