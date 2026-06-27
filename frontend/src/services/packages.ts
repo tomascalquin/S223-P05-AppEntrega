@@ -1,6 +1,6 @@
 import { getStoredAccessToken } from "./auth";
 
-export type PackageStatus = "received" | "delivered" | "pending";
+export type PackageStatus = "received" | "delivered" | "pending" | "atraso";
 
 export type PackageItem = {
   id: number;
@@ -81,7 +81,12 @@ const isObject = (value: unknown): value is Record<string, unknown> => {
 };
 
 const isPackageStatus = (value: unknown): value is PackageStatus => {
-  return value === "received" || value === "delivered" || value === "pending";
+  return (
+    value === "received" ||
+    value === "delivered" ||
+    value === "pending" ||
+    value === "atraso"
+  );
 };
 
 // # Validamos cada paquete recibido antes de usarlo en React.
@@ -301,4 +306,28 @@ export const updatePackage = async (
   );
 
   return buildMutationResponse(responseData).package;
+};
+
+/**
+ * Actualiza el estado de un paquete
+ * Solo disponible para conserjes
+ * Estados válidos: received, pending, delivered, atraso
+ */
+export const updatePackageStatus = async (
+  packageId: number,
+  status: PackageStatus
+) => {
+  const responseData = await request(
+    `/api/role-based/admin/packages/${packageId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status }),
+    },
+    "No se pudo actualizar el estado de la encomienda."
+  );
+
+  return buildPackageFromUnknown(responseData?.package ?? responseData);
 };
