@@ -62,8 +62,7 @@ const AuthConsumer = () => {
 
   const doLogin = () => {
     void login({
-      role: "residente",
-      identifier: "residente",
+      email: "residente@test.cl",
       password: "password123",
     } satisfies LoginCredentials).catch(() => undefined);
   };

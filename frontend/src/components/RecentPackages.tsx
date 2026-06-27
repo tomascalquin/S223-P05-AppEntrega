@@ -14,6 +14,7 @@ type RecentPackagesProps = {
   dateLabel: string;
   statusLabel: string;
   statusLabels: Record<PackageStatus, string>;
+  urgentLabel: string;
 };
 
 const statusClasses: Record<PackageStatus, string> = {
@@ -59,6 +60,7 @@ const RecentPackages = ({
   dateLabel,
   statusLabel,
   statusLabels,
+  urgentLabel,
 }: RecentPackagesProps) => {
   return (
     <section className="rounded-xl border border-white/10 bg-[#2a2a2a] p-4">
@@ -90,7 +92,12 @@ const RecentPackages = ({
 
             <tbody>
               {packages.map((item) => (
-                <tr key={item.id} className="border-t border-white/10 text-gray-200">
+                <tr
+                  key={item.id}
+                  className={`border-t border-white/10 text-gray-200 ${
+                    item.is_urgent ? "bg-red-500/10" : ""
+                  }`}
+                >
                   <td className="py-3 pr-3 whitespace-nowrap">{item.apartment_number}</td>
                   <td className="py-3 pr-3 whitespace-nowrap">{item.sender}</td>
                   <td className="py-3 pr-3 whitespace-nowrap">
@@ -102,11 +109,18 @@ const RecentPackages = ({
                     )}
                   </td>
                   <td className="py-3 whitespace-nowrap">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[item.status]}`}
-                    >
-                      {statusLabels[item.status]}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {item.is_urgent && (
+                        <span className="inline-flex rounded-full bg-red-600 px-2.5 py-1 text-xs font-bold text-white">
+                          {urgentLabel}
+                        </span>
+                      )}
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[item.status]}`}
+                      >
+                        {statusLabels[item.status]}
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ))}

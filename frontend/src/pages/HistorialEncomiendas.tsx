@@ -680,9 +680,16 @@ const HistorialEncomiendas = () => {
         <section className="rounded-xl border border-emerald-500/30 bg-[#2a2a2a] p-5">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">
-                {t("historial.edit.title")}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-white">
+                  {t("historial.edit.title")}
+                </h2>
+                {packages.find((item) => item.id === editingPackageId)?.is_urgent && (
+                  <span className="inline-flex rounded-full bg-red-600 px-2.5 py-1 text-xs font-bold text-white">
+                    {t("conserje.urgency.urgent")}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-400">
                 {t("historial.edit.description")}
               </p>
@@ -946,7 +953,9 @@ const HistorialEncomiendas = () => {
                       className={`border-t border-white/10 ${
                         item.id === navigationState.recentlyCreatedId
                           ? "bg-green-500/10"
-                          : ""
+                          : item.is_urgent
+                            ? "bg-red-500/10"
+                            : ""
                       }`}
                     >
                       <td className="px-4 py-3 whitespace-nowrap">{item.recipient_name}</td>
@@ -960,11 +969,18 @@ const HistorialEncomiendas = () => {
                         {formatDateTime(item.retrieved_at)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[item.status]}`}
-                        >
-                          {statusLabels[item.status]}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {item.is_urgent && (
+                            <span className="inline-flex rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
+                              {t("conserje.urgency.urgent")}
+                            </span>
+                          )}
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[item.status]}`}
+                          >
+                            {statusLabels[item.status]}
+                          </span>
+                        </div>
                       </td>
 
                       {!isResidentView && (

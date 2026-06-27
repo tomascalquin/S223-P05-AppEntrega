@@ -22,6 +22,7 @@ type PackageRow = RowDataPacket & {
   sender: string;
   delivery_date: string | null;
   status: PackageStatus;
+  is_urgent: number;
   retrieval_code: string | null;
   created_at: string;
   retrieved_at: string | null;
@@ -299,13 +300,13 @@ const buildOtpChallengeResponse = (otpSessionId: string, otpExpiresAt: Date, otp
   };
 };
 
-const getUserByIdentifier = async (identifier: string, role: UserRole) => {
-  const normalizedIdentifier = normalizeIdentifier(identifier);
+const getUserByEmail = async (email: string) => {
+  const normalizedEmail = normalizeEmail(email);
   const [rows] = await db.query<UserRow[]>(
     `SELECT * FROM users
-     WHERE role = ? AND (LOWER(email) = ? OR LOWER(username) = ?)
+     WHERE LOWER(email) = ?
      LIMIT 1`,
-    [role, normalizedIdentifier, normalizedIdentifier]
+    [normalizedEmail]
   );
 
   return rows[0] ?? null;
@@ -469,13 +470,20 @@ const parseUserIdFromSegment = (pathname: string, segmentIndex: number) => {
   return Number.isInteger(id) && id > 0 ? id : null;
 };
 
+// # mysql2 devuelve TINYINT como number; normalizamos aquí para que el frontend
+// # siempre reciba un boolean real en is_urgent.
+const toPackageResponse = (row: PackageRow) => ({
+  ...row,
+  is_urgent: Boolean(row.is_urgent),
+});
+
 const getPackageById = async (id: number) => {
   const [rows] = await db.query<PackageRow[]>(
     "SELECT * FROM packages WHERE id = ?",
     [id]
   );
 
-  return rows[0] ?? null;
+  return rows[0] ? toPackageResponse(rows[0]) : null;
 };
 
 const getClaimById = async (id: number) => {
@@ -761,6 +769,7 @@ async function createTables() {
         sender VARCHAR(255) NOT NULL,
         delivery_date TIMESTAMP NULL,
         status ENUM('received', 'delivered', 'pending') DEFAULT 'received',
+        is_urgent TINYINT(1) NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         retrieved_at TIMESTAMP NULL,
         -- # Payload interno del QR. NULL significa que el QR ya no sirve para retirar.
@@ -800,6 +809,10 @@ async function createTables() {
       "status ENUM('received', 'delivered', 'pending') DEFAULT 'received'"
     );
     await ensureColumn("retrieval_code", "retrieval_code VARCHAR(32) NULL");
+    await ensureColumn(
+      "is_urgent",
+      "is_urgent TINYINT(1) NOT NULL DEFAULT 0"
+    );
     await ensureColumn(
       "created_at",
       "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
@@ -1090,7 +1103,7 @@ Bun.serve({
         );
 
         return jsonResponse({
-          packages: rows,
+          packages: rows.map(toPackageResponse),
         });
       } catch (error) {
         return jsonResponse(
@@ -1126,6 +1139,7 @@ Bun.serve({
         const description = getOptionalString(body.description);
         const deliveryDate = getOptionalString(body.delivery_date);
         const status = body.status === undefined ? "received" : body.status;
+        const isUrgent = body.is_urgent === undefined ? false : body.is_urgent;
 
         if (!recipientName) {
           return jsonResponse(
@@ -1168,13 +1182,20 @@ Bun.serve({
           );
         }
 
+        if (typeof isUrgent !== "boolean") {
+          return jsonResponse(
+            { error: "is_urgent debe ser booleano" },
+            { status: 400 }
+          );
+        }
+
         const retrievalCode =
           status === "delivered" ? null : await generateUniqueRetrievalCode();
 
         // # Guardamos el identificador junto al paquete antes de enviar el correo.
         // # Así el QR enviado por email apunta a un registro ya existente y verificable.
         const [result] = await db.query<ResultSetHeader>(
-          "INSERT INTO packages (recipient_name, recipient_email, apartment_number, description, sender, delivery_date, status, retrieval_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO packages (recipient_name, recipient_email, apartment_number, description, sender, delivery_date, status, retrieval_code, is_urgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
           [
             recipientName,
             normalizedRecipientEmail,
@@ -1184,6 +1205,7 @@ Bun.serve({
             deliveryDate,
             status,
             retrievalCode,
+            isUrgent,
           ]
         );
 
@@ -1388,7 +1410,9 @@ Bun.serve({
           stats: {
             pending_total: Number(statsRows[0]?.pending_total ?? 0),
             delivered_today: Number(statsRows[0]?.delivered_today ?? 0),
-            oldest_pending_package: oldestPendingRows[0] ?? null,
+            oldest_pending_package: oldestPendingRows[0]
+              ? toPackageResponse(oldestPendingRows[0])
+              : null,
           },
         });
       } catch (error) {
@@ -2086,15 +2110,18 @@ Bun.serve({
     if (method === "POST" && url.pathname === "/api/auth/register") {
       try {
         const body = (await request.json()) as Record<string, unknown>;
-        const role = body.role;
+        // # El registro público siempre crea residentes: conserje y administrador
+        // # se asignan por whitelist (authorized_emails) o por el panel de admin,
+        // # nunca a partir de un valor que envía el propio cliente.
+        const role: UserRole = "residente";
         const name = getRequiredString(body.name);
         const email = getRequiredString(body.email);
         const username = getRequiredString(body.username);
         const password = getRequiredString(body.password);
 
-        if (!isUserRole(role) || !name || !email || !username || !password) {
+        if (!name || !email || !username || !password) {
           return jsonResponse(
-            { error: "role, name, email, username y password son requeridos" },
+            { error: "name, email, username y password son requeridos" },
             { status: 400 }
           );
         }
@@ -2156,23 +2183,29 @@ Bun.serve({
     if (method === "POST" && url.pathname === "/api/auth/login") {
       try {
         const body = (await request.json()) as Record<string, unknown>;
-        const role = body.role;
-        const identifier = getRequiredString(body.identifier);
+        const email = getRequiredString(body.email);
         const password = getRequiredString(body.password);
 
-        if (!isUserRole(role) || !identifier || !password) {
+        if (!email || !isEmail(email) || !password) {
           return jsonResponse(
-            { error: "role, identifier y password son requeridos" },
+            { error: "Correo electrónico y contraseña son requeridos" },
             { status: 400 }
           );
         }
 
-        const user = await getUserByIdentifier(identifier, role);
+        const user = await getUserByEmail(email);
 
         if (!user) {
           return jsonResponse(
             { error: "Credenciales invalidas" },
             { status: 401 }
+          );
+        }
+
+        if (!isUserRole(user.role)) {
+          return jsonResponse(
+            { error: "El usuario no tiene un rol asignado" },
+            { status: 403 }
           );
         }
 
@@ -2200,15 +2233,16 @@ Bun.serve({
           );
         }
 
+        // # El rol real sale del usuario registrado; el frontend no puede elegirlo ni enviarlo.
         // Si existe al menos una entrada en la whitelist para este rol, el email debe estar incluido.
         const [whitelistCount] = await db.query<RowDataPacket[]>(
           "SELECT COUNT(*) as total FROM authorized_emails WHERE role = ?",
-          [role]
+          [user.role]
         );
         if (Number(whitelistCount[0]?.total ?? 0) > 0) {
           const [whitelistMatch] = await db.query<RowDataPacket[]>(
             "SELECT id FROM authorized_emails WHERE LOWER(email) = ? AND role = ?",
-            [normalizeIdentifier(user.email), role]
+            [normalizeIdentifier(user.email), user.role]
           );
           if (whitelistMatch.length === 0) {
             return jsonResponse(
@@ -2369,7 +2403,6 @@ Bun.serve({
 
         const body = (await request.json()) as Record<string, unknown>;
         const token = getRequiredString(body.token);
-        const requestedRole = isUserRole(body.role) ? body.role : "residente";
 
         if (!token || !googleClient) {
           return jsonResponse(
@@ -2436,7 +2469,7 @@ Bun.serve({
               payload.name || "Usuario Google",
               normalizeIdentifier(payload.email),
               googleUsername,
-              requestedRole,
+              "residente",
               "GOOGLE_LOGIN",
             ]
           );
@@ -2446,7 +2479,8 @@ Bun.serve({
             name: payload.name || "Usuario Google",
             email: normalizeIdentifier(payload.email),
             username: googleUsername,
-            role: requestedRole,
+            // # Las altas automáticas por Google siempre parten como residente; roles internos se asignan desde administración.
+            role: "residente",
           };
         }
 

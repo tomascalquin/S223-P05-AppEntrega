@@ -68,17 +68,24 @@ describe("Login page", () => {
 
     render(<Login />);
 
-    await user.type(screen.getByLabelText("auth.field.identifier"), " residente ");
+    await user.type(screen.getByLabelText("auth.field.identifier"), " residente@test.cl ");
     await user.type(screen.getByLabelText("auth.field.password"), "password123");
     await user.click(screen.getByRole("button", { name: /auth.loginButton/ }));
 
     await waitFor(() =>
       expect(authMock.login).toHaveBeenCalledWith({
-        role: "residente",
-        identifier: "residente",
+        email: "residente@test.cl",
         password: "password123",
       })
     );
+  });
+
+  it("no muestra seleccion manual de rol en el login", () => {
+    render(<Login />);
+
+    expect(screen.queryByText("auth.selectRole")).not.toBeInTheDocument();
+    expect(screen.queryByText("common.roleLabel.concierge")).not.toBeInTheDocument();
+    expect(screen.queryByText("common.roleLabel.administrator")).not.toBeInTheDocument();
   });
 
   it("muestra error visible si las credenciales fallan", async () => {
@@ -87,7 +94,7 @@ describe("Login page", () => {
 
     render(<Login />);
 
-    await user.type(screen.getByLabelText("auth.field.identifier"), "residente");
+    await user.type(screen.getByLabelText("auth.field.identifier"), "residente@test.cl");
     await user.type(screen.getByLabelText("auth.field.password"), "password123");
     await user.click(screen.getByRole("button", { name: /auth.loginButton/ }));
 
@@ -114,8 +121,7 @@ describe("Login page", () => {
 
     render(<Login />);
 
-    await user.click(screen.getByText("common.roleLabel.concierge"));
-    await user.type(screen.getByLabelText("auth.field.identifier"), "conserje");
+    await user.type(screen.getByLabelText("auth.field.identifier"), "conserje@test.cl");
     await user.type(screen.getByLabelText("auth.field.password"), "password123");
     await user.click(screen.getByRole("button", { name: /auth.loginButton/ }));
 

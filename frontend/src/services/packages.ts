@@ -12,6 +12,7 @@ export type PackageItem = {
   sender: string;
   delivery_date: string | null;
   status: PackageStatus;
+  is_urgent: boolean;
   // # Payload interno del QR; queda null cuando el paquete ya fue entregado.
   retrieval_code: string | null;
   created_at: string;
@@ -27,6 +28,7 @@ export type CreatePackagePayload = {
   delivery_date: string;
   description?: string | null;
   status?: PackageStatus;
+  is_urgent?: boolean;
 };
 
 export type UpdatePackagePayload = {
@@ -119,6 +121,7 @@ const isPackageItem = (value: unknown): value is PackageItem => {
     (typeof value.description === "string" || value.description === null) &&
     typeof value.sender === "string" &&
     (typeof value.delivery_date === "string" || value.delivery_date === null) &&
+    typeof value.is_urgent === "boolean" &&
     (typeof value.retrieval_code === "string" || value.retrieval_code === null) &&
     typeof value.created_at === "string" &&
     (typeof value.retrieved_at === "string" || value.retrieved_at === null) &&
